@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Dict, Any, Iterable, List, Optional, Tuple
 
-from src.models import parse_answer_and_conf
+from src.utils.parsing import parse_answer_and_conf
 
 CONF_LINE_RE = re.compile(r"^\s*CONF\s*:\s*[01](?:\.\d+)?\s*$", re.IGNORECASE)
 FINAL_LINE_RE = re.compile(r"^\s*####\s*.+\s*$", re.IGNORECASE)
@@ -171,3 +171,4 @@ def save_sft_jsonl(examples: List[SFTExample], out_path: str) -> None:
                 )
                 + "\n"
             )
+
