@@ -1,9 +1,8 @@
 import argparse
-
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from src.models import load_llm
 from src.data.load_datasets import load_gsm8k
 from src.trajectory.generate_trajectories import generate_jsonl
 from src.teachers.openai_teacher import OpenAITeacher
@@ -31,6 +30,7 @@ def main():
     else:
         if not args.teacher_model:
             raise SystemExit("--teacher_model is required when --teacher_backend=hf")
+        from src.models import load_llm  # <-- IMPORT ONLY HERE
         teacher = load_llm(args.teacher_model, load_in_4bit=args.load_in_4bit)
 
     examples = load_gsm8k(split=args.split)

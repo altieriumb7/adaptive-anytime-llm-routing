@@ -7,16 +7,19 @@ from typing import Dict, Any, List, Optional, Set
 
 from tqdm import tqdm
 
-from src.models import LLM, parse_answer_and_conf
+from src.utils.parsing import parse_answer_and_conf
 from src.data.judging import is_correct
 from src.trajectory.prompts import (
     prompt_t1_draft,
     prompt_t2_resolve,
-    prompt_t3_verify_code,   # internal only
-    prompt_t3_verify_text,   # student-facing t=3
+    prompt_t3_verify_code,
+    prompt_t3_verify_text,
     prompt_t4_repair,
 )
 from src.verifier.safe_exec import extract_python_code, run_python_code
+
+
+# Teacher interface: any object with generate(prompt, max_new_tokens, temperature, top_p, stop_strings)->str
 
 
 @dataclass
@@ -27,12 +30,11 @@ class CheckpointConfig:
     temperature: float = 0.2
 
 
-# Now checkpoints are 1..4 and t=3 is verify_text
 DEFAULT_CHECKPOINTS: List[CheckpointConfig] = [
-    CheckpointConfig(t=1, mode="draft",       max_new_tokens=96,  temperature=0.2),
-    CheckpointConfig(t=2, mode="resolve",     max_new_tokens=192, temperature=0.2),
-    CheckpointConfig(t=3, mode="verify_text", max_new_tokens=192, temperature=0.2),
-    CheckpointConfig(t=4, mode="repair",      max_new_tokens=256, temperature=0.2),
+    CheckpointConfig(t=1, mode="draft",       max_new_tokens=64,  temperature=0.2),
+    CheckpointConfig(t=2, mode="resolve",     max_new_tokens=128, temperature=0.2),
+    CheckpointConfig(t=3, mode="verify_text", max_new_tokens=128, temperature=0.2),
+    CheckpointConfig(t=4, mode="repair",      max_new_tokens=160, temperature=0.2),
 ]
 
 
@@ -70,7 +72,7 @@ def _compute_ttc(correct_by_t: Dict[int, bool]) -> Optional[int]:
 
 
 def run_anytime_trajectory(
-    teacher: LLM,
+    teacher,
     problem: str,
     gold: str,
     checkpoints: List[CheckpointConfig] = DEFAULT_CHECKPOINTS,
@@ -90,27 +92,36 @@ def run_anytime_trajectory(
 
     candidate = a2 or a1
 
-    # --- INTERNAL python verifier (not a student checkpoint) ---
-    p3code = prompt_t3_verify_code(problem, candidate_answer=candidate)
-    out3code = teacher.generate(p3code, max_new_tokens=256, temperature=0.2)
-    code = extract_python_code(out3code)
-    _, c_code = parse_answer_and_conf(out3code)
+    # --- INTERNAL python verifier (not student checkpoint) ---
+    # do it only if needed (saves cost/time)
+    conf2 = 0.5 if c2 is None else float(c2)
+    agree = (a1 is not None and a2 is not None and a1 == a2)
+    need_verify = not (agree and conf2 >= 0.85)
 
+    out3code = ""
+    code = None
+    c_code = None
     exec_res = None
     verifier_stdout = ""
     verifier_stderr = ""
     verified_answer = None
     verified_correct = False
 
-    if code is not None:
-        exec_res = run_python_code(code, timeout_s=2)
-        verifier_stdout = exec_res.stdout.strip()
-        verifier_stderr = (exec_res.stderr or "").strip()
-        if exec_res.ok and verifier_stdout:
-            verified_answer = verifier_stdout.splitlines()[-1].strip()
-            verified_correct = is_correct(verified_answer, gold)
-    else:
-        verifier_stderr = "No python code block found."
+    if need_verify:
+        p3code = prompt_t3_verify_code(problem, candidate_answer=candidate)
+        out3code = teacher.generate(p3code, max_new_tokens=200, temperature=0.2)
+        code = extract_python_code(out3code)
+        _, c_code = parse_answer_and_conf(out3code)
+
+        if code is not None:
+            exec_res = run_python_code(code, timeout_s=2)
+            verifier_stdout = exec_res.stdout.strip()
+            verifier_stderr = (exec_res.stderr or "").strip()
+            if exec_res.ok and verifier_stdout:
+                verified_answer = verifier_stdout.splitlines()[-1].strip()
+                verified_correct = is_correct(verified_answer, gold)
+        else:
+            verifier_stderr = "No python code block found."
 
     # --- t3 verify_text (student-facing) ---
     p3 = prompt_t3_verify_text(problem, draft_text=out1, resolve_text=out2, verifier_stdout=verifier_stdout)
@@ -118,7 +129,7 @@ def run_anytime_trajectory(
     a3, c3 = parse_answer_and_conf(out3)
     corr3 = is_correct(a3, gold)
 
-    # --- t4 repair/final ---
+    # --- t4 repair ---
     p4 = prompt_t4_repair(
         problem,
         draft_text=out1,
@@ -163,8 +174,8 @@ def run_anytime_trajectory(
 
 
 def generate_jsonl(
-    teacher: LLM,
-    examples: List[Any],  # objects with .uid .problem .gold .meta
+    teacher,
+    examples: List[Any],
     out_path: str,
     *,
     resume: bool = True,
