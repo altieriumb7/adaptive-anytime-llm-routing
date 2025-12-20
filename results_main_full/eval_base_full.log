@@ -1,0 +1,82 @@
+progress: 25/1319
+progress: 50/1319
+progress: 75/1319
+progress: 100/1319
+progress: 125/1319
+progress: 150/1319
+progress: 175/1319
+progress: 200/1319
+progress: 225/1319
+progress: 250/1319
+progress: 275/1319
+progress: 300/1319
+progress: 325/1319
+progress: 350/1319
+progress: 375/1319
+progress: 400/1319
+progress: 425/1319
+progress: 450/1319
+progress: 475/1319
+progress: 500/1319
+progress: 525/1319
+progress: 550/1319
+progress: 575/1319
+progress: 600/1319
+progress: 625/1319
+progress: 650/1319
+progress: 675/1319
+progress: 700/1319
+progress: 725/1319
+progress: 750/1319
+progress: 775/1319
+progress: 800/1319
+progress: 825/1319
+progress: 850/1319
+progress: 875/1319
+progress: 900/1319
+progress: 925/1319
+progress: 950/1319
+progress: 975/1319
+progress: 1000/1319
+progress: 1025/1319
+progress: 1050/1319
+progress: 1075/1319
+progress: 1100/1319
+progress: 1125/1319
+progress: 1150/1319
+progress: 1175/1319
+progress: 1200/1319
+progress: 1225/1319
+progress: 1250/1319
+progress: 1275/1319
+progress: 1300/1319
+progress: 1319/1319
+
+=== Accuracy@t (strict is_correct) ===
+t=1: 0.0281
+t=2: 0.0751
+t=3: 0.2487
+t=4: 0.5595
+
+=== TTC ===
+Solved: 788/1319 (0.597)
+Mean TTC (solved only): 3.305
+% solved by t=1: 0.047
+% solved by t=2: 0.164
+% solved by t=3: 0.485
+% solved by t=4: 1.000
+
+=== AUC (accuracy vs budget index) ===
+AUC: 0.2058
+
+=== Calibration ===
+t=1: Brier=0.2500 | ECE=0.4719
+t=2: Brier=0.2500 | ECE=0.4249
+t=3: Brier=0.2506 | ECE=0.2517
+t=4: Brier=0.2500 | ECE=0.0595
+
+=== Numeric-only accuracy@t (last-number/boxed vs gold) ===
+t=1: 0.0282 (on 1312 comparable)
+t=2: 0.0751 (on 1318 comparable)
+t=3: 0.2487 (on 1319 comparable)
+t=4: 0.5604 (on 1317 comparable)

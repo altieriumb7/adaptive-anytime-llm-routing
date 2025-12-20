@@ -16,14 +16,7 @@
 **/*lora*/
 **/*adapter*/
 
-# Trainer artifacts
-**/wandb/
-**/mlruns/
-**/tensorboard/
-**/tb_logs/
-**/lightning_logs/
-**/logs/
-**/*.log
+
 
 # Caches
 **/__pycache__/

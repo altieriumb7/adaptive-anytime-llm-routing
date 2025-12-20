@@ -1,0 +1,23 @@
+
+=== Accuracy@t ===
+t=1: 0.0150
+t=2: 0.0850
+t=3: 0.2600
+t=4: 0.5150
+
+=== TTC ===
+Solved: 117/200 (0.585)
+Mean TTC (solved only): 3.325
+% solved by t=1: 0.026
+% solved by t=2: 0.162
+% solved by t=3: 0.487
+% solved by t=4: 1.000
+
+=== AUC (accuracy vs budget index) ===
+AUC: 0.2033
+
+=== Calibration ===
+t=1: Brier=0.2500 | ECE=0.4850
+t=2: Brier=0.2500 | ECE=0.4150
+t=3: Brier=0.2500 | ECE=0.2400
+t=4: Brier=0.2500 | ECE=0.0150
