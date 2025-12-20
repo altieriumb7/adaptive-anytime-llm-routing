@@ -1,3 +1,4 @@
+import torch
 import argparse
 import json
 import math
@@ -9,7 +10,8 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 
-from src.models import parse_answer_and_conf, build_budget_prompt
+from src.models import parse_answer_and_conf
+from src.train.sft_build import make_messages
 from src.data.load_datasets import load_gsm8k
 from src.data.judging import is_correct
 
@@ -57,6 +59,7 @@ def load_model(base_model: str, adapter_dir: Optional[str]) -> Tuple[Any, Any]:
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
         device_map="auto",
+        torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
     )
     if adapter_dir:
         model = PeftModel.from_pretrained(model, adapter_dir)
@@ -65,8 +68,6 @@ def load_model(base_model: str, adapter_dir: Optional[str]) -> Tuple[Any, Any]:
 
 
 def generate(model, tok, prompt: str, max_new_tokens: int) -> str:
-    import torch
-
     inputs = tok(prompt, return_tensors="pt")
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
@@ -74,15 +75,13 @@ def generate(model, tok, prompt: str, max_new_tokens: int) -> str:
         out = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
-            do_sample=True,
-            temperature=0.2,
-            top_p=0.95,
+            do_sample=False,
             pad_token_id=tok.eos_token_id,
             eos_token_id=tok.eos_token_id,
         )
-    text = tok.decode(out[0], skip_special_tokens=True)
-    if text.startswith(prompt):
-        text = text[len(prompt):]
+    prefix_len = inputs["input_ids"].shape[1]
+    gen = out[0][prefix_len:]
+    text = tok.decode(gen, skip_special_tokens=True)
     return text.strip()
 
 
@@ -94,7 +93,16 @@ def main():
     ap.add_argument("--max_examples", type=int, default=500)
     ap.add_argument("--budgets", default="1,2,4")
     ap.add_argument("--max_new_tokens", default="96,192,256", help="comma list aligned with budgets")
+    ap.add_argument("--save_jsonl", type=str, default=None, help="Write per-example predictions as JSONL (one row per budget).")
     args = ap.parse_args()
+
+    save_jsonl_fh = None
+    if getattr(args, "save_jsonl", None):
+        from pathlib import Path
+        import json, atexit
+        Path(args.save_jsonl).parent.mkdir(parents=True, exist_ok=True)
+        save_jsonl_fh = open(args.save_jsonl, "w", encoding="utf-8", buffering=1)
+        atexit.register(lambda: save_jsonl_fh and save_jsonl_fh.close())
 
     budgets = [int(x) for x in args.budgets.split(",")]
     max_new_tokens = [int(x) for x in args.max_new_tokens.split(",")]
@@ -117,10 +125,59 @@ def main():
     for ex in tqdm(examples, desc="eval"):
         first_correct = None
         for t, mnt in zip(budgets, max_new_tokens):
-            prompt = build_budget_prompt(ex.problem, budget_t=t)
+            messages = make_messages(ex.problem, budget_t=t)
+            # Force short, parseable output (helps base model finish within token budget)
+            messages[-1]["content"] += "\n\nIMPORTANT: Reply with EXACTLY two lines and nothing else:\n#### <final_number>\nCONF: <0-1>\n"
+
+            prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             out = generate(model, tok, prompt, max_new_tokens=mnt)
 
             ans, conf = parse_answer_and_conf(out)
+
+            # --- optional JSONL dump (one row per (uid, budget)) ---
+
+            if save_jsonl_fh is not None:
+
+                import json
+
+                uid = getattr(ex, "uid", None)
+
+                prob = getattr(ex, "problem", None)
+
+                gold = getattr(ex, "gold", None)
+
+                try:
+
+                    corr = int(is_correct(ans, gold))
+
+                except Exception:
+
+                    corr = 0
+
+                row = {
+
+                    "uid": uid,
+
+                    "t": int(t) if "t" in locals() else None,
+
+                    "max_new_tokens": int(max_new_tokens) if "max_new_tokens" in locals() else None,
+
+                    "problem": prob,
+
+                    "gold": gold,
+
+                    "raw_text": out,
+
+                    "answer": ans,
+
+                    "conf": conf,
+
+                    "correct": corr,
+
+                }
+
+                save_jsonl_fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+
             ok = is_correct(ans, ex.gold)
 
             correct_counts[t] += int(ok)

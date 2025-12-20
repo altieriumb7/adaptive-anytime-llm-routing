@@ -1,1 +1,33 @@
 .env
+# Model checkpoints / adapters
+**/checkpoints/
+**/checkpoint*/
+**/*.ckpt
+**/*.pt
+**/*.pth
+**/*.bin
+**/*.safetensors
+**/*.gguf
+**/*.onnx
+
+# LoRA / PEFT adapters (often stored in runs/)
+**/runs/
+**/adapters/
+**/*lora*/
+**/*adapter*/
+
+# Trainer artifacts
+**/wandb/
+**/mlruns/
+**/tensorboard/
+**/tb_logs/
+**/lightning_logs/
+**/logs/
+**/*.log
+
+# Caches
+**/__pycache__/
+**/.cache/
+**/cache/
+**/.venv/
+**/venv/

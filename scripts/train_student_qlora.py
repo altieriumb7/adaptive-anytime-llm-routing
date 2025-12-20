@@ -101,7 +101,7 @@ def main():
         gradient_accumulation_steps=args.grad_accum,
         learning_rate=args.lr,
         num_train_epochs=args.epochs,
-        max_steps=args.max_steps if args.max_steps > 0 else None,
+max_steps=(args.max_steps if (args.max_steps is not None and args.max_steps > 0) else -1),
         logging_steps=20,
         save_steps=200,
         save_total_limit=2,

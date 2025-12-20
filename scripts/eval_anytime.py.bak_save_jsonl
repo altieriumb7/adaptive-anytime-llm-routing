@@ -1,0 +1,170 @@
+import torch
+import argparse
+import json
+import math
+from typing import Dict, Any, List, Tuple, Optional
+
+import numpy as np
+from tqdm import tqdm
+
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
+
+from src.models import parse_answer_and_conf
+from src.train.sft_build import make_messages
+from src.data.load_datasets import load_gsm8k
+from src.data.judging import is_correct
+
+
+def brier_score(confs: List[float], corrects: List[int]) -> float:
+    c = np.array(confs, dtype=np.float64)
+    y = np.array(corrects, dtype=np.float64)
+    return float(np.mean((c - y) ** 2))
+
+
+def ece_score(confs: List[float], corrects: List[int], n_bins: int = 10) -> float:
+    c = np.array(confs, dtype=np.float64)
+    y = np.array(corrects, dtype=np.float64)
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+    ece = 0.0
+    for i in range(n_bins):
+        lo, hi = bins[i], bins[i + 1]
+        mask = (c >= lo) & (c < hi) if i < n_bins - 1 else (c >= lo) & (c <= hi)
+        if mask.sum() == 0:
+            continue
+        acc = y[mask].mean()
+        conf = c[mask].mean()
+        ece += (mask.mean()) * abs(acc - conf)
+    return float(ece)
+
+
+def auc_accuracy(acc_by_t: Dict[int, float]) -> float:
+    # trapezoid over t=1..4 (or whatever keys)
+    ts = sorted(acc_by_t.keys())
+    auc = 0.0
+    for i in range(len(ts) - 1):
+        t0, t1 = ts[i], ts[i + 1]
+        y0, y1 = acc_by_t[t0], acc_by_t[t1]
+        auc += 0.5 * (y0 + y1) * (t1 - t0)
+    # normalize by max span so it’s in [0, max_acc*span]
+    span = ts[-1] - ts[0]
+    return float(auc / span) if span > 0 else float(auc)
+
+
+def load_model(base_model: str, adapter_dir: Optional[str]) -> Tuple[Any, Any]:
+    tok = AutoTokenizer.from_pretrained(adapter_dir or base_model, use_fast=True)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
+
+    model = AutoModelForCausalLM.from_pretrained(
+        base_model,
+        device_map="auto",
+        torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+    )
+    if adapter_dir:
+        model = PeftModel.from_pretrained(model, adapter_dir)
+    model.eval()
+    return tok, model
+
+
+def generate(model, tok, prompt: str, max_new_tokens: int) -> str:
+    inputs = tok(prompt, return_tensors="pt")
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+    with torch.inference_mode():
+        out = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=tok.eos_token_id,
+            eos_token_id=tok.eos_token_id,
+        )
+    prefix_len = inputs["input_ids"].shape[1]
+    gen = out[0][prefix_len:]
+    text = tok.decode(gen, skip_special_tokens=True)
+    return text.strip()
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--base_model", required=True)
+    ap.add_argument("--adapter_dir", default=None, help="LoRA adapter dir (or none for baseline)")
+    ap.add_argument("--split", default="test", choices=["train", "test"])
+    ap.add_argument("--max_examples", type=int, default=500)
+    ap.add_argument("--budgets", default="1,2,4")
+    ap.add_argument("--max_new_tokens", default="96,192,256", help="comma list aligned with budgets")
+    args = ap.parse_args()
+
+    budgets = [int(x) for x in args.budgets.split(",")]
+    max_new_tokens = [int(x) for x in args.max_new_tokens.split(",")]
+    assert len(budgets) == len(max_new_tokens), "budgets and max_new_tokens must align"
+
+    tok, model = load_model(args.base_model, args.adapter_dir)
+
+    examples = load_gsm8k(split=args.split)
+    examples = examples[: args.max_examples]
+
+    correct_counts = {t: 0 for t in budgets}
+    total = len(examples)
+
+    # store conf/correct per t for calibration
+    confs_by_t: Dict[int, List[float]] = {t: [] for t in budgets}
+    y_by_t: Dict[int, List[int]] = {t: [] for t in budgets}
+
+    ttc_list: List[Optional[int]] = []
+
+    for ex in tqdm(examples, desc="eval"):
+        first_correct = None
+        for t, mnt in zip(budgets, max_new_tokens):
+            messages = make_messages(ex.problem, budget_t=t)
+            # Force short, parseable output (helps base model finish within token budget)
+            messages[-1]["content"] += "\n\nIMPORTANT: Reply with EXACTLY two lines and nothing else:\n#### <final_number>\nCONF: <0-1>\n"
+
+            prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            out = generate(model, tok, prompt, max_new_tokens=mnt)
+
+            ans, conf = parse_answer_and_conf(out)
+            ok = is_correct(ans, ex.gold)
+
+            correct_counts[t] += int(ok)
+
+            # if conf missing, treat as 0.5 so metrics are defined
+            conf_val = 0.5 if conf is None else float(conf)
+            confs_by_t[t].append(conf_val)
+            y_by_t[t].append(int(ok))
+
+            if first_correct is None and ok:
+                first_correct = t
+
+        ttc_list.append(first_correct)
+
+    acc_by_t = {t: correct_counts[t] / total for t in budgets}
+
+    print("\n=== Accuracy@t ===")
+    for t in budgets:
+        print(f"t={t}: {acc_by_t[t]:.4f}")
+
+    # TTC stats
+    solved = [t for t in ttc_list if t is not None]
+    print("\n=== TTC ===")
+    print(f"Solved: {len(solved)}/{total} ({len(solved)/total:.3f})")
+    if solved:
+        print(f"Mean TTC (solved only): {np.mean(solved):.3f}")
+        for t in budgets:
+            pct = sum(1 for x in solved if x <= t) / len(solved)
+            print(f"% solved by t={t}: {pct:.3f}")
+
+    # AUC over budget
+    auc = auc_accuracy(acc_by_t)
+    print("\n=== AUC (accuracy vs budget index) ===")
+    print(f"AUC: {auc:.4f}")
+
+    # calibration
+    print("\n=== Calibration ===")
+    for t in budgets:
+        bs = brier_score(confs_by_t[t], y_by_t[t])
+        ece = ece_score(confs_by_t[t], y_by_t[t], n_bins=10)
+        print(f"t={t}: Brier={bs:.4f} | ECE={ece:.4f}")
+
+if __name__ == "__main__":
+    main()

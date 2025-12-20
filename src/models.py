@@ -138,24 +138,55 @@ Do not output multiple final answers.
         return f"{instruction}\n{problem}\n"
 
 
-def parse_answer_and_conf(text: str) -> Tuple[Optional[str], Optional[float]]:
+def parse_answer_and_conf(text: str):
     """
-    Extracts GSM8K-like final answer and CONF probability.
+    Returns (answer_str_or_None, confidence_float).
+    Robust to: ####, \\boxed{...}, "final answer", and a tail fallback.
+    Confidence defaults to 0.5 if missing.
     """
-    ans = None
-    conf = None
+    import re
 
-    m_ans = FINAL_RE.search(text)
-    if m_ans:
-        ans = m_ans.group(1).strip()
+    if text is None:
+        return None, 0.5
 
-    m_conf = CONF_RE.search(text)
-    if m_conf:
+    t = str(text).strip()
+
+    # ---- confidence ----
+    conf = 0.5
+    m = re.search(r"(?:^|\n)\s*(?:CONF|Confidence)\s*:\s*([01](?:\.\d+)?)\s*(?:$|\n)", t, flags=re.I)
+    if m:
         try:
-            conf_val = float(m_conf.group(1))
-            # clamp to [0, 1]
-            conf = max(0.0, min(1.0, conf_val))
-        except ValueError:
-            conf = None
+            conf = float(m.group(1))
+            conf = 0.0 if conf < 0.0 else (1.0 if conf > 1.0 else conf)
+        except Exception:
+            conf = 0.5
 
-    return ans, conf
+    def norm_num(x: str) -> str:
+        return x.replace(",", "").strip()
+
+    # 1) strict format: #### <number>
+    m = re.search(r"####\s*([-+]?\d[\d,]*\.?\d*)", t)
+    if m:
+        return norm_num(m.group(1)), conf
+
+    # 2) boxed: \\boxed{...}
+    m = re.search(r"\\\\boxed\{([^}]+)\}", t)
+    if m:
+        inner = m.group(1).strip()
+        m2 = re.search(r"[-+]?\d[\d,]*\.?\d*", inner)
+        if m2:
+            return norm_num(m2.group(0)), conf
+
+    # 3) final answer / answer is
+    m = re.search(r"(?:final\s+answer|answer\s+is|answer)\s*[:\-]?\s*([-+]?\d[\d,]*\.?\d*)", t, flags=re.I)
+    if m:
+        return norm_num(m.group(1)), conf
+
+    # 4) tail fallback: last number near the end
+    tail = t[-250:]
+    nums = re.findall(r"[-+]?\d[\d,]*\.?\d*", tail)
+    if nums:
+        return norm_num(nums[-1]), conf
+
+    return None, conf
+
