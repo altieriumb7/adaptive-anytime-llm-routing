@@ -1,0 +1,20 @@
+{
+  "acc": 0.6992481203007519,
+  "flip_rate": 0.34398496240601506,
+  "k": 2,
+  "m": 2,
+  "mean_steps": 2.0,
+  "mean_tokens": 256.0,
+  "min_step": 1,
+  "n": 1064,
+  "p95_steps": 2.0,
+  "p95_tokens": 256.0,
+  "policy": "fixed",
+  "regress_at_stop_rate": 0.07330827067669173,
+  "seed": 0,
+  "stop_histogram": [
+    0.0,
+    1.0
+  ],
+  "threshold": 0.8
+}

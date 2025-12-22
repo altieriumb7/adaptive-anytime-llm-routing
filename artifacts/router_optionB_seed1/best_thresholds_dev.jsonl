@@ -1,0 +1,4 @@
+{"target_mean_steps": 1.0, "best_threshold": 0.5, "mean_steps": 1.0102803738317756, "acc": 0.6373831775700934}
+{"target_mean_steps": 2.0, "best_threshold": 0.8039240506329114, "mean_steps": 2.527102803738318, "acc": 0.7177570093457943}
+{"target_mean_steps": 3.0, "best_threshold": 0.8535443037974684, "mean_steps": 2.646728971962617, "acc": 0.705607476635514}
+{"target_mean_steps": 4.0, "best_threshold": 0.9527848101265823, "mean_steps": 4.0, "acc": 0.6766355140186916}
