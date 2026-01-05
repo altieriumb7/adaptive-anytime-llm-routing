@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from src.data.judging import is_correct
 from src.utils.parsing import parse_answer_and_conf
+from src.data.anytime_postprocess import *
 
 # Keep regexes consistent with training target canonicalization.
 CONF_LINE_RE = re.compile(r"^\s*CONF\s*:\s*[01](?:\.\d+)?\s*$", re.IGNORECASE)

@@ -15,7 +15,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from src.data.anytime_postprocess import postprocess_checkpoint, add_step_deltas
+from scripts.anytime_postprocess import postprocess_checkpoint, add_step_deltas
 
 
 def iter_jsonl(path: str) -> Iterable[Dict[str, Any]]:

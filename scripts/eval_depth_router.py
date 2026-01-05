@@ -129,25 +129,21 @@ def extract_steps(example: Dict[str, Any]) -> Tuple[str, List[Step]]:
         raise ValueError("Example has no steps/trajectory/pred_steps (after grouping).")
 
     steps: List[Step] = []
-    for s in raw_steps:
+    for i, s in enumerate(raw_steps, start=1):
         ans = normalize_answer(s.get("ans") or s.get("answer") or s.get("pred") or s.get("output"))
 
-        conf = s.get("conf", None)
-        if conf is None:
-            conf = s.get("confidence", None)
-        if conf is None:
-            conf = s.get("p_correct", None)
-        if conf is None:
-            conf = 0.0  # conservative default
-
-        tok = s.get("tokens", None)
-        if tok is None:
-            tok = s.get("n_tokens", None)
-        if tok is None:
-            tok = s.get("tok", None)
+        conf = s.get("conf", s.get("confidence", s.get("p_correct", 0.0)))
+        tok = s.get("tokens", s.get("n_tokens", s.get("tok", None)))
         tok = int(tok) if tok is not None else None
 
-        steps.append(Step(ans=ans, conf=float(conf), tokens=tok))
+        # --- FIX: set t (budget index) ---
+        t_raw = s.get("t", s.get("step", s.get("idx", None)))
+        try:
+            t_val = int(t_raw) if t_raw is not None else i
+        except Exception:
+            t_val = i
+
+        steps.append(Step(ans=ans, conf=float(conf), tokens=tok, t=t_val))
 
     if not steps:
         raise ValueError("Empty steps list.")
@@ -232,8 +228,9 @@ def evaluate(
     min_step: int = 1,
     random_hist_path: Optional[str] = None,
     seed: int = 0,
-calibrator: Optional[ConfidenceCalibrator] = None
+    calibrator: Optional[ConfidenceCalibrator] = None,
 ) -> Dict[str, Any]:
+
     rng = random.Random(seed)
 
     stop_steps: List[int] = []
@@ -255,8 +252,15 @@ calibrator: Optional[ConfidenceCalibrator] = None
         cum_tokens = compute_prefix_tokens(steps)
         T = len(steps)
         if calibrator is not None:
-            steps = [Step(ans=st.ans, conf=calibrator.calibrate(st.t or 0, st.conf), tokens=st.tokens, t=st.t) for st in
-                     steps]
+            steps = [
+                Step(
+                    ans=st.ans,
+                    conf=calibrator.calibrate(st.t, st.conf),
+                    tokens=st.tokens,
+                    t=st.t,
+                )
+                for st in steps
+            ]
 
         if policy == "fixed":
             s = policy_fixed(steps, k=k)
@@ -332,6 +336,7 @@ def main() -> None:
     ap.add_argument("--random_hist_path", type=str, default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", type=str, default=None)
+    ap.add_argument("--calibrator", type=str, default=None, help="Path to confidence calibrator JSON.")
 
     args = ap.parse_args()
     examples = read_jsonl_grouped(args.data)
@@ -344,7 +349,10 @@ def main() -> None:
         min_step=args.min_step,
         random_hist_path=args.random_hist_path,
         seed=args.seed,
+        calibrator=calibrator,
     )
+
+    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None
 
     s = json.dumps(res, indent=2, sort_keys=True)
     print(s)
