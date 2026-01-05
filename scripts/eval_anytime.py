@@ -14,6 +14,7 @@ from src.models import parse_answer_and_conf
 from src.train.sft_build import make_messages
 from src.data.load_datasets import load_gsm8k
 from src.data.judging import is_correct
+from src.calibration.conf_calibrator import ConfidenceCalibrator
 
 
 def brier_score(confs: List[float], corrects: List[int]) -> float:
@@ -94,7 +95,16 @@ def main():
     ap.add_argument("--budgets", default="1,2,4")
     ap.add_argument("--max_new_tokens", default="96,192,256", help="comma list aligned with budgets")
     ap.add_argument("--save_jsonl", type=str, default=None, help="Write per-example predictions as JSONL (one row per budget).")
+    ap.add_argument("--calibrator", type=str, default=None,
+                    help="Path to per-budget confidence calibrator JSON")
+
     args = ap.parse_args()
+
+    budgets = args.budgets  # or however your script defines this
+    # (sometimes it's budgets = [1,2,3,4] or parsed from CLI)
+
+    from src.calibration.conf_calibrator import ConfidenceCalibrator
+    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None
 
     save_jsonl_fh = None
     if getattr(args, "save_jsonl", None):
@@ -118,6 +128,10 @@ def main():
 
     # store conf/correct per t for calibration
     confs_by_t: Dict[int, List[float]] = {t: [] for t in budgets}
+    correct_by_t: Dict[int, List[int]] = {t: [] for t in budgets}
+
+    # add this new one
+    confs_cal_by_t: Dict[int, List[float]] = {t: [] for t in budgets}
     y_by_t: Dict[int, List[int]] = {t: [] for t in budgets}
 
     ttc_list: List[Optional[int]] = []

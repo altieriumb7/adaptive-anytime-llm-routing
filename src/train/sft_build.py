@@ -6,6 +6,8 @@ import random
 import re
 from dataclasses import dataclass
 from typing import Dict, Any, Iterable, List, Optional, Tuple
+from src.data.judging import is_correct
+from src.calibration.conf_calibrator import ConfidenceCalibrator
 
 from src.utils.parsing import parse_answer_and_conf
 
@@ -98,6 +100,11 @@ def build_sft_examples(
     keep_only_if_answer_present: bool = True,
     seed: int = 0,
     max_per_uid: Optional[int] = None,
+    conf_target: str = "teacher",   # teacher | label | smooth | calibrated_teacher
+    conf_pos: float = 0.90,
+    conf_neg: float = 0.10,
+    calibrator_path: Optional[str] = None
+
 ) -> List[SFTExample]:
     """
     Convert one JSONL (trajectories) into a list of (messages, response) examples.
@@ -114,6 +121,17 @@ def build_sft_examples(
         meta = obj.get("meta", {})
 
         cps = {cp["t"]: cp for cp in obj["checkpoints"]}
+        calibrator = ConfidenceCalibrator.from_json(calibrator_path) if calibrator_path else None
+
+        mode = (conf_target or "teacher").lower()
+        if mode in {"label", "labels", "hard"}:
+            conf = 1.0 if is_correct(answer, gold) else 0.0
+        elif mode in {"smooth", "label_smooth", "smoothed"}:
+            conf = float(conf_pos) if is_correct(answer, gold) else float(conf_neg)
+        elif mode in {"calibrated_teacher", "cal_teacher"}:
+            base_conf = 0.75 if conf is None else float(conf)
+            conf = float(calibrator.calibrate(t, base_conf)) if calibrator else base_conf
+        # else teacher: keep conf
 
         # choose which budgets to emit
         chosen = list(budgets)

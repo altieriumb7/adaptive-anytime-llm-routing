@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import numpy as np
+from src.calibration.conf_calibrator import ConfidenceCalibrator
 
 from eval_depth_router import read_jsonl_grouped, evaluate
 
@@ -17,6 +18,8 @@ def main() -> None:
     ap.add_argument("--target_mean_steps", type=str, default="1,2,3,4")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out_grid", type=str, default=None, help="Optional: write sweep grid JSON.")
+    ap.add_argument("--calibrator", type=str, default=None, help="Optional: path to confidence calibrator JSON.")
+
     args = ap.parse_args()
 
     dev = read_jsonl_grouped(args.dev)
@@ -33,7 +36,8 @@ def main() -> None:
                 "mean_tokens": float(res["mean_tokens"]),
             }
         )
-
+    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None
+    res = evaluate(..., calibrator=calibrator)
     targets = [float(x.strip()) for x in args.target_mean_steps.split(",") if x.strip()]
     for B in targets:
         best = min(grid, key=lambda r: abs(r["mean_steps"] - B))

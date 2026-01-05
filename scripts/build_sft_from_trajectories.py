@@ -7,6 +7,12 @@ def main():
     ap.add_argument("--out_jsonl", required=True)
     ap.add_argument("--budgets", default="1,2,4", help="comma-separated budgets, e.g. 1,2,4")
     ap.add_argument("--max_per_uid", type=int, default=None)
+    ap.add_argument("--conf_target", required=True)
+    ap.add_argument("--conf_pos", required=True)
+    ap.add_argument("--conf_neg", required=True)
+    ap.add_argument("--calibrator_path", required=True)
+
+
     args = ap.parse_args()
 
     budgets = tuple(int(x.strip()) for x in args.budgets.split(",") if x.strip())

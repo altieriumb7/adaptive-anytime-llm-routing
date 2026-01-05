@@ -29,6 +29,7 @@ import math
 import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+from src.calibration.conf_calibrator import ConfidenceCalibrator
 
 
 @dataclass
@@ -36,6 +37,8 @@ class Step:
     ans: str
     conf: float
     tokens: Optional[int] = None
+    t: Optional[int] = None
+
 
 
 def normalize_answer(x: Any) -> str:
@@ -229,6 +232,7 @@ def evaluate(
     min_step: int = 1,
     random_hist_path: Optional[str] = None,
     seed: int = 0,
+calibrator: Optional[ConfidenceCalibrator] = None
 ) -> Dict[str, Any]:
     rng = random.Random(seed)
 
@@ -245,10 +249,14 @@ def evaluate(
         if not isinstance(loaded_hist, list):
             raise ValueError("random_hist_path must be a JSON list.")
 
+
     for ex in examples:
         gold, steps = extract_steps(ex)
         cum_tokens = compute_prefix_tokens(steps)
         T = len(steps)
+        if calibrator is not None:
+            steps = [Step(ans=st.ans, conf=calibrator.calibrate(st.t or 0, st.conf), tokens=st.tokens, t=st.t) for st in
+                     steps]
 
         if policy == "fixed":
             s = policy_fixed(steps, k=k)
