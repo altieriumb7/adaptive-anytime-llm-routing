@@ -100,11 +100,6 @@ def main():
 
     args = ap.parse_args()
 
-    budgets = args.budgets  # or however your script defines this
-    # (sometimes it's budgets = [1,2,3,4] or parsed from CLI)
-
-    from src.calibration.conf_calibrator import ConfidenceCalibrator
-    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None
 
     save_jsonl_fh = None
     if getattr(args, "save_jsonl", None):
@@ -117,6 +112,7 @@ def main():
     budgets = [int(x) for x in args.budgets.split(",")]
     max_new_tokens = [int(x) for x in args.max_new_tokens.split(",")]
     assert len(budgets) == len(max_new_tokens), "budgets and max_new_tokens must align"
+    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None
 
     tok, model = load_model(args.base_model, args.adapter_dir)
 
@@ -125,14 +121,12 @@ def main():
 
     correct_counts = {t: 0 for t in budgets}
     total = len(examples)
-
     # store conf/correct per t for calibration
     confs_by_t: Dict[int, List[float]] = {t: [] for t in budgets}
     correct_by_t: Dict[int, List[int]] = {t: [] for t in budgets}
 
-    # add this new one
+    # calibrated confidences (only meaningful if calibrator is provided)
     confs_cal_by_t: Dict[int, List[float]] = {t: [] for t in budgets}
-    y_by_t: Dict[int, List[int]] = {t: [] for t in budgets}
 
     ttc_list: List[Optional[int]] = []
 
@@ -174,7 +168,7 @@ def main():
 
                     "t": int(t) if "t" in locals() else None,
 
-                    "max_new_tokens": int(max_new_tokens) if "max_new_tokens" in locals() else None,
+                    "max_new_tokens": int(mnt),
 
                     "problem": prob,
 
@@ -196,10 +190,16 @@ def main():
 
             correct_counts[t] += int(ok)
 
-            # if conf missing, treat as 0.5 so metrics are defined
             conf_val = 0.5 if conf is None else float(conf)
+            # (optional clamp for safety)
+            conf_val = max(0.0, min(1.0, conf_val))
+
             confs_by_t[t].append(conf_val)
-            y_by_t[t].append(int(ok))
+            correct_by_t[t].append(int(ok))
+
+            if calibrator is not None:
+                conf_cal = calibrator.calibrate(t, conf_val)
+                confs_cal_by_t[t].append(float(conf_cal))
 
             if first_correct is None and ok:
                 first_correct = t
@@ -227,12 +227,22 @@ def main():
     print("\n=== AUC (accuracy vs budget index) ===")
     print(f"AUC: {auc:.4f}")
 
-    # calibration
-    print("\n=== Calibration ===")
+    print("\n=== Calibration (raw) ===")
     for t in budgets:
-        bs = brier_score(confs_by_t[t], y_by_t[t])
-        ece = ece_score(confs_by_t[t], y_by_t[t], n_bins=10)
+        bs = brier_score(confs_by_t[t], correct_by_t[t])
+        ece = ece_score(confs_by_t[t], correct_by_t[t], n_bins=10)
         print(f"t={t}: Brier={bs:.4f} | ECE={ece:.4f}")
+
+    if calibrator is not None:
+        print("\n=== Calibration (calibrated) ===")
+        for t in budgets:
+            # confs_cal_by_t[t] exists only if we appended it; guard if needed
+            if len(confs_cal_by_t[t]) == 0:
+                continue
+            bs = brier_score(confs_cal_by_t[t], correct_by_t[t])
+            ece = ece_score(confs_cal_by_t[t], correct_by_t[t], n_bins=10)
+            print(f"t={t}: Brier={bs:.4f} | ECE={ece:.4f}")
+
 
 if __name__ == "__main__":
     main()
