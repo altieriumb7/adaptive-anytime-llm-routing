@@ -1,0 +1,12 @@
+# Template: run eval_anytime from YAML
+script: scripts/eval_anytime.py
+args:
+  dataset: gsm8k
+  split: test
+  max_examples: 200
+  budgets: "1,2,3,4"
+  max_new_tokens: "96,192,384,800"
+  base_model: YOUR_BASE_MODEL
+  adapter_dir: null
+  save_jsonl: results/preds_main_adapter.jsonl
+  calibrator: null

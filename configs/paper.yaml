@@ -1,0 +1,16 @@
+# Paper artifact generation config
+# Edit the preds_jsonl paths to point to the JSONL you generate with:
+#   python scripts/eval_anytime.py ... --save_jsonl <path>
+
+output_dir: artifacts/paper
+budgets: [1, 2, 3, 4]
+n_bins: 10
+
+# Router CSV already present in the repo
+router_csv: artifacts/router_optionB/paper_table_test_acc_tokens.csv
+
+models:
+  - name: main_adapter
+    preds_jsonl: results/preds_main_adapter.jsonl   # <-- CHANGE THIS
+  - name: base
+    preds_jsonl: results/preds_base.jsonl           # <-- CHANGE THIS

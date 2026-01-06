@@ -1,0 +1,7 @@
+# Template: fit per-budget confidence calibrator
+script: scripts/fit_conf_calibrator.py
+args:
+  in: data/router_splits/dev.jsonl
+  out: artifacts/calibration/platt_dev.json
+  method: platt
+  min_points: 200

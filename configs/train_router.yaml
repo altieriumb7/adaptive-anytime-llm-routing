@@ -1,0 +1,6 @@
+# Template: sweep thresholds (router tuning)
+script: scripts/sweep_conf_thresholds.py
+args:
+  data_jsonl: data/router_splits/dev_enriched.jsonl
+  out_dir: artifacts/router_sweep
+  calibrator: null

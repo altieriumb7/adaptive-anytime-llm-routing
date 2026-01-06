@@ -1,0 +1,8 @@
+# Template: router evaluation
+script: scripts/eval_depth_router.py
+args:
+  dev_jsonl: data/router_splits/dev_enriched.jsonl
+  test_jsonl: data/router_splits/test_enriched.jsonl
+  sweep_dir: artifacts/router_sweep
+  out_dir: artifacts/router_eval
+  calibrator: null
