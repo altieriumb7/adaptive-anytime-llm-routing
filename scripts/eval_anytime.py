@@ -12,7 +12,7 @@ from peft import PeftModel
 
 from src.models import parse_answer_and_conf
 from src.train.sft_build import make_messages
-from src.data.load_datasets import load_gsm8k
+from src.data.load_datasets import load_dataset_by_name
 from src.data.judging import is_correct
 from src.calibration.conf_calibrator import ConfidenceCalibrator
 
@@ -90,6 +90,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base_model", required=True)
     ap.add_argument("--adapter_dir", default=None, help="LoRA adapter dir (or none for baseline)")
+    ap.add_argument("--dataset", default="gsm8k", choices=["gsm8k", "math", "svamp"])
     ap.add_argument("--split", default="test", choices=["train", "test"])
     ap.add_argument("--max_examples", type=int, default=500)
     ap.add_argument("--budgets", default="1,2,4")
@@ -116,7 +117,7 @@ def main():
 
     tok, model = load_model(args.base_model, args.adapter_dir)
 
-    examples = load_gsm8k(split=args.split)
+    examples = load_dataset_by_name(args.dataset, split=args.split)
     examples = examples[: args.max_examples]
 
     correct_counts = {t: 0 for t in budgets}

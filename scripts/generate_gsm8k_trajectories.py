@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.data.load_datasets import load_gsm8k
+from src.data.load_datasets import load_dataset_by_name
 from src.trajectory.generate_trajectories import generate_jsonl
 from src.teachers.openai_teacher import OpenAITeacher
 
@@ -11,6 +11,7 @@ from src.teachers.openai_teacher import OpenAITeacher
 def main():
     ap = argparse.ArgumentParser()
 
+    ap.add_argument("--dataset", default="gsm8k", choices=["gsm8k", "math", "svamp"])
     ap.add_argument("--teacher_backend", choices=["openai", "hf"], default="openai")
     ap.add_argument("--openai_model", default="gpt-4o-mini")
     ap.add_argument("--teacher_model", default=None, help="HF model name if teacher_backend=hf")
@@ -30,10 +31,10 @@ def main():
     else:
         if not args.teacher_model:
             raise SystemExit("--teacher_model is required when --teacher_backend=hf")
-        from src.models import load_llm  # <-- IMPORT ONLY HERE
+        from src.models import load_llm  # import only when needed
         teacher = load_llm(args.teacher_model, load_in_4bit=args.load_in_4bit)
 
-    examples = load_gsm8k(split=args.split)
+    examples = load_dataset_by_name(args.dataset, split=args.split)
     generate_jsonl(
         teacher=teacher,
         examples=examples,
