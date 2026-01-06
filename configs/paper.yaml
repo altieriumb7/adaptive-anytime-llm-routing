@@ -8,9 +8,8 @@ n_bins: 10
 
 # Router CSV already present in the repo
 router_csv: artifacts/router_optionB/paper_table_test_acc_tokens.csv
-
 models:
   - name: main_adapter
-    preds_jsonl: results/preds_main_adapter.jsonl   # <-- CHANGE THIS
+    preds_jsonl: results_abl/preds_main_adapter.jsonl
   - name: base
-    preds_jsonl: results/preds_base.jsonl           # <-- CHANGE THIS
+    preds_jsonl: results_abl/preds_base.jsonl

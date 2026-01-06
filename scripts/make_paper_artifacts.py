@@ -12,6 +12,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import yaml  # pyyaml
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
