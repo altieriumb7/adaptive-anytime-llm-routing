@@ -1,0 +1,140 @@
+== Running from repo root: /workspace/Distilling-Anytime-Trajectories-with-Calibrated-Confidence
+== BASE_MODEL: Qwen/Qwen2.5-Math-1.5B-Instruct
+== DATASET/SPLIT: gsm8k/test
+== BUDGETS: 1,2,3,4  MAX_NEW_TOKENS: 96,160,224,320
+== MAX_EXAMPLES: 5000
+== ROUTER_TEST_FRAC: 0.2  ROUTER_SEEDS: 0 1 2
+Requirement already satisfied: pip in /venv/main/lib/python3.12/site-packages (25.3)
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+Requirement already satisfied: torch>=2.1 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 1)) (2.9.1+cu130)
+Requirement already satisfied: transformers>=4.44 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 2)) (4.57.3)
+Requirement already satisfied: accelerate>=0.33 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 3)) (1.12.0)
+Requirement already satisfied: datasets>=2.20 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 4)) (4.4.2)
+Requirement already satisfied: peft>=0.11 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 5)) (0.18.0)
+Requirement already satisfied: bitsandbytes>=0.43 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 6)) (0.49.0)
+Requirement already satisfied: safetensors>=0.4 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 7)) (0.7.0)
+Requirement already satisfied: tqdm>=4.66 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 8)) (4.67.1)
+Requirement already satisfied: pyyaml>=6.0 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 9)) (6.0.3)
+Requirement already satisfied: numpy>=1.26 in /venv/main/lib/python3.12/site-packages (from -r requirements.train.txt (line 10)) (2.3.5)
+Requirement already satisfied: filelock in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (3.20.0)
+Requirement already satisfied: typing-extensions>=4.10.0 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (4.15.0)
+Requirement already satisfied: setuptools in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (80.9.0)
+Requirement already satisfied: sympy>=1.13.3 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (3.6.1)
+Requirement already satisfied: jinja2 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (2025.10.0)
+Requirement already satisfied: nvidia-cuda-nvrtc==13.0.48 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (13.0.48)
+Requirement already satisfied: nvidia-cuda-runtime==13.0.48 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (13.0.48)
+Requirement already satisfied: nvidia-cuda-cupti==13.0.48 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (13.0.48)
+Requirement already satisfied: nvidia-cudnn-cu13==9.13.0.50 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (9.13.0.50)
+Requirement already satisfied: nvidia-cublas==13.0.0.19 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (13.0.0.19)
+Requirement already satisfied: nvidia-cufft==12.0.0.15 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (12.0.0.15)
+Requirement already satisfied: nvidia-curand==10.4.0.35 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (10.4.0.35)
+Requirement already satisfied: nvidia-cusolver==12.0.3.29 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (12.0.3.29)
+Requirement already satisfied: nvidia-cusparse==12.6.2.49 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (12.6.2.49)
+Requirement already satisfied: nvidia-cusparselt-cu13==0.8.0 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (0.8.0)
+Requirement already satisfied: nvidia-nccl-cu13==2.27.7 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (2.27.7)
+Requirement already satisfied: nvidia-nvshmem-cu13==3.3.24 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (3.3.24)
+Requirement already satisfied: nvidia-nvtx==13.0.39 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (13.0.39)
+Requirement already satisfied: nvidia-nvjitlink==13.0.39 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (13.0.39)
+Requirement already satisfied: nvidia-cufile==1.15.0.42 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (1.15.0.42)
+Requirement already satisfied: triton==3.5.1 in /venv/main/lib/python3.12/site-packages (from torch>=2.1->-r requirements.train.txt (line 1)) (3.5.1)
+Requirement already satisfied: huggingface-hub<1.0,>=0.34.0 in /venv/main/lib/python3.12/site-packages (from transformers>=4.44->-r requirements.train.txt (line 2)) (0.36.0)
+Requirement already satisfied: packaging>=20.0 in /venv/main/lib/python3.12/site-packages (from transformers>=4.44->-r requirements.train.txt (line 2)) (25.0)
+Requirement already satisfied: regex!=2019.12.17 in /venv/main/lib/python3.12/site-packages (from transformers>=4.44->-r requirements.train.txt (line 2)) (2025.11.3)
+Requirement already satisfied: requests in /venv/main/lib/python3.12/site-packages (from transformers>=4.44->-r requirements.train.txt (line 2)) (2.32.5)
+Requirement already satisfied: tokenizers<=0.23.0,>=0.22.0 in /venv/main/lib/python3.12/site-packages (from transformers>=4.44->-r requirements.train.txt (line 2)) (0.22.2)
+Requirement already satisfied: hf-xet<2.0.0,>=1.1.3 in /venv/main/lib/python3.12/site-packages (from huggingface-hub<1.0,>=0.34.0->transformers>=4.44->-r requirements.train.txt (line 2)) (1.2.0)
+Requirement already satisfied: psutil in /venv/main/lib/python3.12/site-packages (from accelerate>=0.33->-r requirements.train.txt (line 3)) (7.1.3)
+Requirement already satisfied: pyarrow>=21.0.0 in /venv/main/lib/python3.12/site-packages (from datasets>=2.20->-r requirements.train.txt (line 4)) (22.0.0)
+Requirement already satisfied: dill<0.4.1,>=0.3.0 in /venv/main/lib/python3.12/site-packages (from datasets>=2.20->-r requirements.train.txt (line 4)) (0.4.0)
+Requirement already satisfied: pandas in /venv/main/lib/python3.12/site-packages (from datasets>=2.20->-r requirements.train.txt (line 4)) (2.3.3)
+Requirement already satisfied: httpx<1.0.0 in /venv/main/lib/python3.12/site-packages (from datasets>=2.20->-r requirements.train.txt (line 4)) (0.28.1)
+Requirement already satisfied: xxhash in /venv/main/lib/python3.12/site-packages (from datasets>=2.20->-r requirements.train.txt (line 4)) (3.6.0)
+Requirement already satisfied: multiprocess<0.70.19 in /venv/main/lib/python3.12/site-packages (from datasets>=2.20->-r requirements.train.txt (line 4)) (0.70.18)
+Requirement already satisfied: aiohttp!=4.0.0a0,!=4.0.0a1 in /venv/main/lib/python3.12/site-packages (from fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (3.13.3)
+Requirement already satisfied: anyio in /venv/main/lib/python3.12/site-packages (from httpx<1.0.0->datasets>=2.20->-r requirements.train.txt (line 4)) (4.12.0)
+Requirement already satisfied: certifi in /venv/main/lib/python3.12/site-packages (from httpx<1.0.0->datasets>=2.20->-r requirements.train.txt (line 4)) (2025.11.12)
+Requirement already satisfied: httpcore==1.* in /venv/main/lib/python3.12/site-packages (from httpx<1.0.0->datasets>=2.20->-r requirements.train.txt (line 4)) (1.0.9)
+Requirement already satisfied: idna in /venv/main/lib/python3.12/site-packages (from httpx<1.0.0->datasets>=2.20->-r requirements.train.txt (line 4)) (3.11)
+Requirement already satisfied: h11>=0.16 in /venv/main/lib/python3.12/site-packages (from httpcore==1.*->httpx<1.0.0->datasets>=2.20->-r requirements.train.txt (line 4)) (0.16.0)
+Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /venv/main/lib/python3.12/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (2.6.1)
+Requirement already satisfied: aiosignal>=1.4.0 in /venv/main/lib/python3.12/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (1.4.0)
+Requirement already satisfied: attrs>=17.3.0 in /venv/main/lib/python3.12/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (25.4.0)
+Requirement already satisfied: frozenlist>=1.1.1 in /venv/main/lib/python3.12/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (1.8.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /venv/main/lib/python3.12/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (6.7.0)
+Requirement already satisfied: propcache>=0.2.0 in /venv/main/lib/python3.12/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (0.4.1)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in /venv/main/lib/python3.12/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2025.10.0,>=2023.1.0->datasets>=2.20->-r requirements.train.txt (line 4)) (1.22.0)
+Requirement already satisfied: charset_normalizer<4,>=2 in /venv/main/lib/python3.12/site-packages (from requests->transformers>=4.44->-r requirements.train.txt (line 2)) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /venv/main/lib/python3.12/site-packages (from requests->transformers>=4.44->-r requirements.train.txt (line 2)) (2.6.2)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /venv/main/lib/python3.12/site-packages (from sympy>=1.13.3->torch>=2.1->-r requirements.train.txt (line 1)) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /venv/main/lib/python3.12/site-packages (from jinja2->torch>=2.1->-r requirements.train.txt (line 1)) (3.0.3)
+Requirement already satisfied: python-dateutil>=2.8.2 in /venv/main/lib/python3.12/site-packages (from pandas->datasets>=2.20->-r requirements.train.txt (line 4)) (2.9.0.post0)
+Requirement already satisfied: pytz>=2020.1 in /venv/main/lib/python3.12/site-packages (from pandas->datasets>=2.20->-r requirements.train.txt (line 4)) (2025.2)
+Requirement already satisfied: tzdata>=2022.7 in /venv/main/lib/python3.12/site-packages (from pandas->datasets>=2.20->-r requirements.train.txt (line 4)) (2025.3)
+Requirement already satisfied: six>=1.5 in /venv/main/lib/python3.12/site-packages (from python-dateutil>=2.8.2->pandas->datasets>=2.20->-r requirements.train.txt (line 4)) (1.17.0)
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+Requirement already satisfied: matplotlib in /venv/main/lib/python3.12/site-packages (from -r requirements.paper.txt (line 1)) (3.10.8)
+Requirement already satisfied: pyyaml in /venv/main/lib/python3.12/site-packages (from -r requirements.paper.txt (line 2)) (6.0.3)
+Requirement already satisfied: numpy in /venv/main/lib/python3.12/site-packages (from -r requirements.paper.txt (line 3)) (2.3.5)
+Requirement already satisfied: contourpy>=1.0.1 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (1.3.3)
+Requirement already satisfied: cycler>=0.10 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (0.12.1)
+Requirement already satisfied: fonttools>=4.22.0 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (4.61.1)
+Requirement already satisfied: kiwisolver>=1.3.1 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (1.4.9)
+Requirement already satisfied: packaging>=20.0 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (25.0)
+Requirement already satisfied: pillow>=8 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (12.0.0)
+Requirement already satisfied: pyparsing>=3 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (3.3.1)
+Requirement already satisfied: python-dateutil>=2.7 in /venv/main/lib/python3.12/site-packages (from matplotlib->-r requirements.paper.txt (line 1)) (2.9.0.post0)
+Requirement already satisfied: six>=1.5 in /venv/main/lib/python3.12/site-packages (from python-dateutil>=2.7->matplotlib->-r requirements.paper.txt (line 1)) (1.17.0)
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+== Hotfix: patching scripts/eval_depth_router.py calibrator order
+patched eval_depth_router.py
+== P0: sanity checks
+
+=== Sanity Check Summary ===
+Path: data/sft_gsm8k_anytime_v2.jsonl
+Schema: sft
+Rows read: 29892
+Unique uids: 7473
+Inferred budgets (t): [1, 2, 3, 4]
+
+Issues
+- JSON errors: 0
+- Missing required fields: 0
+- Non-parseable answers: 0
+- Missing answer: 0
+- Missing conf: 0
+- Conf out-of-range: 0
+- Missing expected budgets (per uid): 0
+- Duplicate uids: 0
+- Duplicate (uid,t): 0
+
+=== Sanity Check Summary ===
+Path: data/anytime_gsm8k_train_v2.jsonl
+Schema: trajectory
+Rows read: 7473
+Unique uids: 7473
+Inferred budgets (t): [1, 2, 3, 4]
+Modes: {'draft': 7473, 'resolve': 7473, 'verify_text': 7473, 'repair': 7473}
+
+Issues
+- JSON errors: 0
+- Missing required fields: 0
+- Non-parseable answers: 0
+- Missing answer: 0
+- Missing conf: 0
+- Conf out-of-range: 0
+- Missing expected budgets (per uid): 0
+- Duplicate uids: 0
+- Duplicate (uid,t): 0
+== P1: cleaning trajectories
+clean: 0it [00:00, ?it/s]clean: 2800it [00:00, 27998.62it/s]clean: 5600it [00:00, 21654.06it/s]clean: 7473it [00:00, 22972.37it/s]
+Wrote 7473 rows to data/anytime_gsm8k_train_v2_clean.jsonl (dropped 0).
+== P3: student already exists at artifacts/student_anytime_qlora, skipping training
+== P4: base preds already exist: results/preds_base_full.jsonl (skipping)
+== P4: student preds already exist: results/preds_student_full.jsonl (skipping)
+== P2: making router splits from student preds
+Total uids: 1319  total rows: 5276
+Traceback (most recent call last):
+  File "<stdin>", line 24, in <module>
+TypeError: 'int' object is not iterable

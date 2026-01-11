@@ -139,3 +139,7 @@ Do not output multiple final answers.
 
 
 
+
+
+# Re-export parser used by eval scripts
+from src.utils.parsing import parse_answer_and_conf

@@ -20,7 +20,8 @@ MAX_EXAMPLES="${MAX_EXAMPLES:-5000}"
 
 # Router split settings
 ROUTER_TEST_FRAC="${ROUTER_TEST_FRAC:-0.2}"
-ROUTER_SEEDS=(${ROUTER_SEEDS:-0 1 2})
+ROUTER_SEEDS="${ROUTER_SEEDS:-0 1 2}"
+export ROUTER_TEST_FRAC ROUTER_SEEDS
 
 #############################################
 # LOGGING
@@ -33,7 +34,7 @@ echo "== BASE_MODEL: ${BASE_MODEL}"
 echo "== DATASET/SPLIT: ${DATASET}/${SPLIT}"
 echo "== BUDGETS: ${BUDGETS}  MAX_NEW_TOKENS: ${MAX_NEW_TOKENS}"
 echo "== MAX_EXAMPLES: ${MAX_EXAMPLES}"
-echo "== ROUTER_TEST_FRAC: ${ROUTER_TEST_FRAC}  ROUTER_SEEDS: ${ROUTER_SEEDS[*]}"
+echo "== ROUTER_TEST_FRAC: ${ROUTER_TEST_FRAC}  ROUTER_SEEDS: ${ROUTER_SEEDS}"
 
 #############################################
 # 0) ENV + DEPS
@@ -163,7 +164,8 @@ import json, os, random
 IN="${STUDENT_PREDS}"
 OUTROOT="data/router_splits_seeds"
 TEST_FRAC=float("${ROUTER_TEST_FRAC}")
-SEEDS=${ROUTER_SEEDS}
+SEEDS = [int(s) for s in "${ROUTER_SEEDS}".replace(",", " ").split()]
+router_seeds = SEEDS
 
 rows=[]
 uids=set()

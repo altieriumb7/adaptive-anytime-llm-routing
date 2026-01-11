@@ -339,6 +339,8 @@ def main() -> None:
     ap.add_argument("--calibrator", type=str, default=None, help="Path to confidence calibrator JSON.")
 
     args = ap.parse_args()
+    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None
+
     examples = read_jsonl_grouped(args.data)
     res = evaluate(
         examples,
@@ -351,9 +353,6 @@ def main() -> None:
         seed=args.seed,
         calibrator=calibrator,
     )
-
-    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None
-
     s = json.dumps(res, indent=2, sort_keys=True)
     print(s)
     if args.out:
