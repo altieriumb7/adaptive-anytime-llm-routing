@@ -132,7 +132,14 @@ def extract_steps(example: Dict[str, Any]) -> Tuple[str, List[Step]]:
     for i, s in enumerate(raw_steps, start=1):
         ans = normalize_answer(s.get("ans") or s.get("answer") or s.get("pred") or s.get("output"))
 
-        conf = s.get("conf", s.get("confidence", s.get("p_correct", 0.0)))
+        conf_raw = s.get("conf", s.get("confidence", s.get("p_correct", 0.5)))
+        if conf_raw is None:
+            conf_raw = 0.5
+        try:
+            conf = float(conf_raw)
+        except Exception:
+            conf = 0.5
+
         tok = s.get("tokens", s.get("n_tokens", s.get("tok", None)))
         tok = int(tok) if tok is not None else None
 
@@ -143,7 +150,7 @@ def extract_steps(example: Dict[str, Any]) -> Tuple[str, List[Step]]:
         except Exception:
             t_val = i
 
-        steps.append(Step(ans=ans, conf=float(conf), tokens=tok, t=t_val))
+        steps.append(Step(ans=ans, conf=conf, tokens=tok, t=t_val))
 
     if not steps:
         raise ValueError("Empty steps list.")
@@ -247,10 +254,13 @@ def evaluate(
             raise ValueError("random_hist_path must be a JSON list.")
 
 
+    max_T = 0
+
     for ex in examples:
         gold, steps = extract_steps(ex)
         cum_tokens = compute_prefix_tokens(steps)
         T = len(steps)
+        max_T = max(max_T, T)
         if calibrator is not None:
             steps = [
                 Step(
@@ -269,7 +279,16 @@ def evaluate(
         elif policy == "stability":
             s = policy_stability(steps, m=m, min_step=min_step)
         elif policy == "random":
-            hist = loaded_hist if (loaded_hist is not None and len(loaded_hist) == T) else [1.0 / T] * T
+            # Allow histograms of different length by truncating/padding and renormalizing.
+            if loaded_hist is None:
+                hist = [1.0 / T] * T
+            else:
+                if len(loaded_hist) >= T:
+                    hist = [float(x) for x in loaded_hist[:T]]
+                else:
+                    hist = [float(x) for x in loaded_hist] + [0.0] * (T - len(loaded_hist))
+                z = float(sum(hist))
+                hist = ([p / z for p in hist] if z > 0 else [1.0 / T] * T)
             s = policy_random_from_hist(T, hist, rng)
         else:
             raise ValueError(f"Unknown policy: {policy}")
@@ -320,7 +339,7 @@ def evaluate(
         "p95_tokens": p95([float(x) for x in stop_tokens]),
         "flip_rate": sum(flips_any) / max(1, len(flips_any)),
         "regress_at_stop_rate": sum(regress_at_stop) / max(1, len(regress_at_stop)),
-        "stop_histogram": build_stop_histogram(stop_steps, max(stop_steps)) if stop_steps else [],
+        "stop_histogram": build_stop_histogram(stop_steps, max_T) if stop_steps else [],
     }
     return out
 
