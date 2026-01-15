@@ -13,12 +13,6 @@ Outputs:
 Run from repo root:
   python scripts/run_router_optionB_repro.py
 """
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from __future__ import annotations
 
@@ -37,6 +31,12 @@ _spec = importlib.util.spec_from_file_location("eval_depth_router", "scripts/eva
 _edr = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_edr)
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 # ---------------- Config ----------------
 SEEDS = [0, 1, 2]
