@@ -33,10 +33,20 @@ from src.calibration.conf_calibrator import ConfidenceCalibrator
 # Import eval_depth_router without installation
 import importlib.util
 
-_spec = importlib.util.spec_from_file_location("eval_depth_router", str(ROOT / "scripts" / "eval_depth_router.py"))
+_spec = importlib.util.spec_from_file_location(
+    "eval_depth_router",
+    str(ROOT / "scripts" / "eval_depth_router.py")
+)
+assert _spec is not None and _spec.loader is not None
+
 _edr = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
+
+# --- IMPORTANT (Python 3.12 dataclasses): register module before exec ---
+import sys as _sys
+_sys.modules[_spec.name] = _edr
+
 _spec.loader.exec_module(_edr)
+
 
 # ---------------- Config ----------------
 SEEDS = [0, 1, 2]
