@@ -23,23 +23,6 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-#!/usr/bin/env python3
-"""Option-B router evaluation (Strada A: compute-matched in expectation).
-
-Strada A: define compute tiers B1..B4 by fixed-depth baselines (k=1..4).
-For each tier and seed, tune adaptive routers on dev to match the fixed baseline
-in *expected* compute (mean tokens), then evaluate once on test.
-"""
-
-from __future__ import annotations
-
-import csv
-import json
-import statistics
-import sys
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-
 # --- IMPORTANT: add repo root to sys.path BEFORE importing src.* or scripts.* ---
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -47,7 +30,6 @@ if str(ROOT) not in sys.path:
 
 from src.calibration.conf_calibrator import ConfidenceCalibrator
 from scripts import eval_depth_router as _edr
-
 
 
 # ---------------- Config ----------------
