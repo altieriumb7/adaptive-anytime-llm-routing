@@ -23,29 +23,21 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# --- IMPORTANT: add repo root to sys.path BEFORE importing src.* ---
+from __future__ import annotations
+
+import csv
+import json
+import statistics
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.calibration.conf_calibrator import ConfidenceCalibrator
-
-# Import eval_depth_router without installation
-import importlib.util
-
-_spec = importlib.util.spec_from_file_location(
-    "eval_depth_router",
-    str(ROOT / "scripts" / "eval_depth_router.py")
-)
-assert _spec is not None and _spec.loader is not None
-
-_edr = importlib.util.module_from_spec(_spec)
-
-# --- IMPORTANT (Python 3.12 dataclasses): register module before exec ---
-import sys as _sys
-_sys.modules[_spec.name] = _edr
-
-_spec.loader.exec_module(_edr)
+from scripts import eval_depth_router as _edr
 
 
 # ---------------- Config ----------------
