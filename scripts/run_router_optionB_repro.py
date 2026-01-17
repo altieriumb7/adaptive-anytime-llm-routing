@@ -35,8 +35,8 @@ from scripts import eval_depth_router as _edr
 # ---------------- Config ----------------
 SEEDS = [0, 1, 2]
 TIERS = [1, 2, 3, 4]  # B1..B4
-THS = [0.50 + i * (0.99 - 0.50) / 79 for i in range(80)]
-STAB_GRID = [(m, min_step) for m in [2, 3, 4] for min_step in [1, 2]]
+THS = [i * 0.99 / 499 for i in range(500)]  # 0.00..0.99 finer grid
+STAB_GRID = [(m, min_step) for m in [1, 2, 3, 4] for min_step in [1, 2, 3, 4]]
 
 OUTROOT = Path("artifacts/router_optionB")
 OUTROOT.mkdir(parents=True, exist_ok=True)
