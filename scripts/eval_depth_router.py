@@ -262,10 +262,20 @@ def evaluate(
         T = len(steps)
         max_T = max(max_T, T)
         if calibrator is not None:
+            def _clip(p: float, eps: float = 1e-6) -> float:
+                try:
+                    p = float(p)
+                except Exception:
+                    return 0.5
+                # handle NaN
+                if p != p:
+                    return 0.5
+                return min(1.0 - eps, max(eps, p))
+
             steps = [
                 Step(
                     ans=st.ans,
-                    conf=calibrator.calibrate(st.t, st.conf),
+                    conf=_clip(calibrator.calibrate(st.t, st.conf)),
                     tokens=st.tokens,
                     t=st.t,
                 )
