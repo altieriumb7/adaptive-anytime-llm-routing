@@ -35,7 +35,17 @@ from scripts import eval_depth_router as _edr
 # ---------------- Config ----------------
 SEEDS = [0, 1, 2]
 TIERS = [1, 2, 3, 4]  # B1..B4
-THS = [i * 0.99 / 499 for i in range(500)]  # 0.00..0.99 finer grid
+def make_threshold_grid() -> List[float]:
+    # coarse grid
+    grid = [i * 0.999 / 999 for i in range(1000)]  # 0.0 .. 0.999
+    # extra resolution extremely close to 1.0 (fixes cases where step-1 conf is often >0.99)
+    grid += [1.0 - 10.0 ** (-k) for k in range(2, 13)]  # 0.99, 0.999, ..., 1-1e-12
+    grid += [1.0 - j * 1e-6 for j in [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]]  # 1-1e-6..1-1e-3
+    # clamp just below 1.0
+    grid = [max(0.0, min(1.0 - 1e-15, float(x))) for x in grid]
+    return sorted(set(grid))
+
+THS = make_threshold_grid()
 STAB_GRID = [(m, min_step) for m in [1, 2, 3, 4] for min_step in [1, 2, 3, 4]]
 
 OUTROOT = Path("artifacts/router_optionB")
@@ -56,36 +66,63 @@ def load_calibrator_for_seed(seed: int) -> Optional[ConfidenceCalibrator]:
         return ConfidenceCalibrator.from_json(str(p))
     return None
 
-
 def choose_conf_threshold(
     dev_examples: List[Dict[str, Any]],
     target_mean_tokens: float,
     calibrator: Optional[ConfidenceCalibrator],
+    tol_frac: float = 0.02,  # 2% tolerance
 ) -> Tuple[float, Dict[str, Any]]:
-    best = None
+    tol = max(2.0, tol_frac * target_mean_tokens)  # at least 2 tokens
+    cands = []
     for th in THS:
         r = _edr.evaluate(dev_examples, policy="conf", threshold=th, seed=0, calibrator=calibrator)
-        score = (abs(float(r["mean_tokens"]) - target_mean_tokens), -float(r["acc"]))
-        if best is None or score < best[0]:
-            best = (score, th, r)
-    assert best is not None
-    return float(best[1]), best[2]
+        delta = abs(float(r["mean_tokens"]) - target_mean_tokens)
+        cands.append((delta, float(r["acc"]), float(th), r))
+
+    # Prefer candidates within tolerance: maximize acc, then minimize delta
+    within = [c for c in cands if c[0] <= tol]
+    if within:
+        within.sort(key=lambda x: (-x[1], x[0]))
+        _, _, th, r = within[0]
+        return float(th), r
+
+    # Otherwise: minimize delta, tie-break by accuracy
+    cands.sort(key=lambda x: (x[0], -x[1]))
+    _, _, th, r = cands[0]
+    return float(th), r
 
 
 def choose_stability(
     dev_examples: List[Dict[str, Any]],
     target_mean_tokens: float,
     calibrator: Optional[ConfidenceCalibrator],
+    tier_k: int,
+    tol_frac: float = 0.02,  # 2% tolerance
 ) -> Tuple[int, int, Dict[str, Any]]:
-    best = None
+    tol = max(2.0, tol_frac * target_mean_tokens)
+
+    cands = []
     for m, min_step in STAB_GRID:
+        # Avoid the trivial "fixed replica" for k>=2: (m=1, min_step=k) => always stop at step k
+        if tier_k >= 2 and m == 1 and min_step == tier_k:
+            continue
+
         r = _edr.evaluate(dev_examples, policy="stability", m=m, min_step=min_step, seed=0, calibrator=calibrator)
-        score = (abs(float(r["mean_tokens"]) - target_mean_tokens), -float(r["acc"]))
-        if best is None or score < best[0]:
-            best = (score, m, min_step, r)
-    assert best is not None
-    _, m, min_step, r = best
-    return int(m), int(min_step), r
+        delta = abs(float(r["mean_tokens"]) - target_mean_tokens)
+        cands.append((delta, float(r["acc"]), int(m), int(min_step), r))
+
+    if not cands:
+        raise RuntimeError("No stability candidates (STAB_GRID empty after filtering).")
+
+    within = [c for c in cands if c[0] <= tol]
+    if within:
+        within.sort(key=lambda x: (-x[1], x[0]))
+        _, _, m, min_step, r = within[0]
+        return m, min_step, r
+
+    cands.sort(key=lambda x: (x[0], -x[1]))
+    _, _, m, min_step, r = cands[0]
+    return m, min_step, r
 
 
 def evaluate_oracle(examples: List[Dict[str, Any]], calibrator: Optional[ConfidenceCalibrator]) -> Dict[str, Any]:
@@ -212,7 +249,7 @@ for seed in SEEDS:
         rows_seed.append(row_from_eval(seed=seed, split="test", policy="random", budget_tag=budget_tag, params="matched", r=rtest_rand))
 
         # (3) Stability tuned to match mean tokens
-        m, min_step, rdev_stab = choose_stability(dev_ex, target_tokens, calibrator)
+        m, min_step, rdev_stab = choose_stability(dev_ex, target_tokens, calibrator, tier_k=B)
         rtest_stab = _edr.evaluate(test_ex, policy="stability", m=m, min_step=min_step, seed=0, calibrator=calibrator)
         rows_seed.append(row_from_eval(seed=seed, split="dev", policy="stability", budget_tag=budget_tag, params=f"m={m};min={min_step}", r=rdev_stab))
         rows_seed.append(row_from_eval(seed=seed, split="test", policy="stability", budget_tag=budget_tag, params=f"m={m};min={min_step}", r=rtest_stab))
