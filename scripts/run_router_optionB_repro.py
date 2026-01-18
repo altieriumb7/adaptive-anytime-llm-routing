@@ -34,25 +34,12 @@ T_MAX = 4              # anytime trajectory length
 
 def make_threshold_grid() -> List[float]:
     # Dense grid + very high thresholds
-    grid = [i * 0.999 / 999 for i in range(1000)]   # 0..0.999
+    grid = [i * 0.999 / 999 for i in range(1000)]  # 0..0.999
     grid += [1.0 - 10.0 ** (-k) for k in range(2, 13)]  # 0.99, 0.999, ..., 1-1e-12
-    grid += [1.0 - j * 1e-6 for j in [1,2,5,10,20,50,100,200,500,1000]]
+    grid += [1.0 - j * 1e-6 for j in [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]]
     # clamp below 1
     grid = [max(0.0, min(1.0 - 1e-15, float(x))) for x in grid]
     return sorted(set(grid))
-
-def random_expected_metrics(examples, stop_hist):
-    stop_hist = pad_hist(stop_hist, T_MAX)
-    n = len(examples)
-    acc = steps = toks = 0.0
-    for ex in examples:
-        gold, stps = edr.extract_steps(ex)
-        cum = edr.compute_prefix_tokens(stps)
-        for i, p in enumerate(stop_hist, start=1):
-            steps += p * i
-            toks  += p * cum[i-1]
-            acc   += p * (1.0 if stps[i-1].ans == gold else 0.0)
-    return {"acc": acc/n, "mean_steps": steps/n, "mean_tokens": toks/n, "stop_histogram": stop_hist}
 
 
 THS = make_threshold_grid()
@@ -71,6 +58,21 @@ def pad_hist(hist: List[float], T: int = T_MAX) -> List[float]:
     return [x / s for x in h]
 
 
+def random_expected_metrics(examples, stop_hist):
+    """Deterministic expected metrics under stop_hist (no sampling)."""
+    stop_hist = pad_hist(stop_hist, T_MAX)
+    n = len(examples)
+    acc = steps = toks = 0.0
+    for ex in examples:
+        gold, stps = edr.extract_steps(ex)
+        cum = edr.compute_prefix_tokens(stps)
+        for i, p in enumerate(stop_hist, start=1):
+            steps += p * i
+            toks += p * cum[i - 1]
+            acc += p * (1.0 if stps[i - 1].ans == gold else 0.0)
+    return {"acc": acc / n, "mean_steps": steps / n, "mean_tokens": toks / n, "stop_histogram": stop_hist}
+
+
 @dataclass
 class Mix:
     mode: str  # "single" or "mix"
@@ -80,18 +82,17 @@ class Mix:
     min_step: Optional[int] = None
     # for mix:
     p_low: Optional[float] = None
-    low: Optional[Dict[str, Any]] = None
-    high: Optional[Dict[str, Any]] = None
+    low: Optional[Dict[str, Any]] = None   # wrapper dict
+    high: Optional[Dict[str, Any]] = None  # wrapper dict
     desc: str = ""
 
 
 def mix_metrics(p_low: float, low: Dict[str, Any], high: Dict[str, Any]) -> Dict[str, Any]:
-    # Expected values for averages (acc/mean_tokens/mean_steps), plus a mixed histogram.
+    """Expected values for averages (acc/mean_tokens/mean_steps), plus a mixed stop histogram."""
     out = dict(low)
     out["acc"] = p_low * float(low["acc"]) + (1 - p_low) * float(high["acc"])
     out["mean_tokens"] = p_low * float(low["mean_tokens"]) + (1 - p_low) * float(high["mean_tokens"])
     out["mean_steps"] = p_low * float(low["mean_steps"]) + (1 - p_low) * float(high["mean_steps"])
-    # stop_histogram: mix + pad to T_MAX
     h_low = pad_hist(low.get("stop_histogram", []), T_MAX)
     h_high = pad_hist(high.get("stop_histogram", []), T_MAX)
     h = [p_low * a + (1 - p_low) * b for a, b in zip(h_low, h_high)]
@@ -99,8 +100,10 @@ def mix_metrics(p_low: float, low: Dict[str, Any], high: Dict[str, Any]) -> Dict
     return out
 
 
-def pick_bracket_by_tokens(cands: List[Tuple[float, Dict[str, Any]]], target: float) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    # cands: list of (mean_tokens, res)
+def pick_bracket_by_tokens(
+    cands: List[Tuple[float, Dict[str, Any]]], target: float
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """cands: list of (mean_tokens, wrapper). Returns (low_wrapper, high_wrapper)."""
     cands = sorted(cands, key=lambda x: x[0])
     below = [c for c in cands if c[0] <= target]
     above = [c for c in cands if c[0] >= target]
@@ -122,28 +125,23 @@ def choose_conf_mix(dev_examples, target_tokens: float, calibrator: Optional[Con
     for th in THS:
         r = edr.evaluate(dev_examples, policy="conf", threshold=float(th), seed=seed, calibrator=calibrator)
         cands.append((float(r["mean_tokens"]), {"th": float(th), "res": r}))
-    # build bracket (by mean_tokens)
-    low_wrap, high_wrap = pick_bracket_by_tokens([(mt, w) for mt, w in cands], target_tokens)
 
-    # If exact-ish with a single threshold, take it
+    low_w, high_w = pick_bracket_by_tokens([(mt, w) for mt, w in cands], target_tokens)
+
     best_single = min([w for _, w in cands], key=lambda w: abs(float(w["res"]["mean_tokens"]) - target_tokens))
     if abs(float(best_single["res"]["mean_tokens"]) - target_tokens) < 1e-6:
         return Mix(mode="single", th=float(best_single["th"]), desc=f"single th={best_single['th']:.6g}")
 
-    low = low_wrap["res"]
-    high = high_wrap["res"]
-
+    low = low_w["res"]
+    high = high_w["res"]
     mu_low = float(low["mean_tokens"])
     mu_high = float(high["mean_tokens"])
     if abs(mu_high - mu_low) < 1e-12:
-        # cannot mix; fall back to closest single
         return Mix(mode="single", th=float(best_single["th"]), desc=f"fallback single th={best_single['th']:.6g}")
 
-    # weight for LOW to hit target in expectation
     p_low = (mu_high - target_tokens) / (mu_high - mu_low)
     p_low = max(0.0, min(1.0, float(p_low)))
-
-    return Mix(mode="mix", p_low=p_low, low=low_wrap, high=high_wrap, desc=f"mix conf p_low={p_low:.3f}")
+    return Mix(mode="mix", p_low=p_low, low=low_w, high=high_w, desc=f"mix conf p_low={p_low:.3f}")
 
 
 def stability_is_trivial_fixed(m: int, min_step: int, tier_k: int) -> bool:
@@ -151,7 +149,9 @@ def stability_is_trivial_fixed(m: int, min_step: int, tier_k: int) -> bool:
     return (m == 1 and min_step == tier_k)
 
 
-def choose_stability_mix(dev_examples, target_tokens: float, calibrator: Optional[ConfidenceCalibrator], seed: int, tier_k: int) -> Mix:
+def choose_stability_mix(
+    dev_examples, target_tokens: float, calibrator: Optional[ConfidenceCalibrator], seed: int, tier_k: int
+) -> Mix:
     def eval_grid(exclude_trivial: bool) -> List[Tuple[float, Dict[str, Any]]]:
         out = []
         for m, min_step in STAB_GRID:
@@ -161,38 +161,32 @@ def choose_stability_mix(dev_examples, target_tokens: float, calibrator: Optiona
             out.append((float(r["mean_tokens"]), {"m": m, "min_step": min_step, "res": r}))
         return out
 
-    # First try excluding trivial fixed replica; if bracketing fails badly, allow it as fallback.
     cands = eval_grid(exclude_trivial=True)
     if not cands:
         cands = eval_grid(exclude_trivial=False)
 
-    # closest single exact?
     best_single = min([w for _, w in cands], key=lambda w: abs(float(w["res"]["mean_tokens"]) - target_tokens))
     if abs(float(best_single["res"]["mean_tokens"]) - target_tokens) < 1e-6:
-        return Mix(mode="single", m=int(best_single["m"]), min_step=int(best_single["min_step"]),
-                   desc=f"single stab m={best_single['m']} min_step={best_single['min_step']}")
+        return Mix(
+            mode="single",
+            m=int(best_single["m"]),
+            min_step=int(best_single["min_step"]),
+            desc=f"single stab m={best_single['m']} min_step={best_single['min_step']}",
+        )
 
-    low_wrap, high_wrap = pick_bracket_by_tokens([(mt, w["res"]) for mt, w in cands], target_tokens)
+    low_w, high_w = pick_bracket_by_tokens([(mt, w) for mt, w in cands], target_tokens)
 
-    # If we got here, low_wrap/high_wrap are res dicts; we need their params too.
-    # Find matching wrappers:
-    def find_wrap(res_obj):
-        for _, w in cands:
-            if w["res"] is res_obj:
-                return w
-        # fallback (shouldn't happen): closest by tokens
-        return best_single
-
-    low_w = find_wrap(low_wrap)
-    high_w = find_wrap(high_wrap)
     low = low_w["res"]
     high = high_w["res"]
-
     mu_low = float(low["mean_tokens"])
     mu_high = float(high["mean_tokens"])
     if abs(mu_high - mu_low) < 1e-12:
-        return Mix(mode="single", m=int(best_single["m"]), min_step=int(best_single["min_step"]),
-                   desc=f"fallback single stab m={best_single['m']} min_step={best_single['min_step']}")
+        return Mix(
+            mode="single",
+            m=int(best_single["m"]),
+            min_step=int(best_single["min_step"]),
+            desc=f"fallback single stab m={best_single['m']} min_step={best_single['min_step']}",
+        )
 
     p_low = (mu_high - target_tokens) / (mu_high - mu_low)
     p_low = max(0.0, min(1.0, float(p_low)))
@@ -200,14 +194,14 @@ def choose_stability_mix(dev_examples, target_tokens: float, calibrator: Optiona
     return Mix(
         mode="mix",
         p_low=p_low,
-        low=low, high=high,
+        low=low_w,
+        high=high_w,
         desc=f"mix stab p_low={p_low:.3f} (low m={low_w['m']},min_step={low_w['min_step']} / high m={high_w['m']},min_step={high_w['min_step']})",
     )
 
 
 def oracle_metrics(examples, seed: int = 0, calibrator: Optional[ConfidenceCalibrator] = None) -> Dict[str, Any]:
-    # Oracle: earliest correct step if any, else last step.
-    # Compute from raw steps; ignore conf.
+    # Oracle: earliest correct step if any, else last step. Ignore conf.
     stop_steps = []
     stop_tokens = []
     correct = []
@@ -263,19 +257,17 @@ for seed in SEEDS:
 
     rows: List[Dict[str, Any]] = []
 
-    # Oracle is independent of tier
     dev_or = oracle_metrics(dev_ex, seed=seed, calibrator=calibrator)
     test_or = oracle_metrics(test_ex, seed=seed, calibrator=calibrator)
 
     for B in TARGETS:
         budget_tag = f"B{B}"
 
-        # Fixed baseline defines target compute on DEV
         dev_fixed = edr.evaluate(dev_ex, policy="fixed", k=B, seed=seed, calibrator=calibrator)
         test_fixed = edr.evaluate(test_ex, policy="fixed", k=B, seed=seed, calibrator=calibrator)
         target_tokens = float(dev_fixed["mean_tokens"])
 
-        # -------- Confidence: compute-matched in expectation (2-point mixture if needed)
+        # ---- Confidence (mixture)
         conf_mix = choose_conf_mix(dev_ex, target_tokens, calibrator, seed)
         if conf_mix.mode == "single":
             th = float(conf_mix.th)
@@ -284,11 +276,8 @@ for seed in SEEDS:
             conf_hist = pad_hist(dev_conf.get("stop_histogram", []), T_MAX)
         else:
             assert conf_mix.low is not None and conf_mix.high is not None and conf_mix.p_low is not None
-            # low/high are *res dicts* here
             low_w = conf_mix.low
             high_w = conf_mix.high
-            assert low_w is not None and high_w is not None
-
             dev_low = low_w["res"]
             dev_high = high_w["res"]
             th_low = float(low_w["th"])
@@ -301,14 +290,14 @@ for seed in SEEDS:
             test_conf = mix_metrics(float(conf_mix.p_low), test_low, test_high)
             conf_hist = pad_hist(dev_conf.get("stop_histogram", []), T_MAX)
 
-        # -------- Random matched: matches CONF mixture stop histogram (on DEV)
+        # ---- Random matched (deterministic expectation)
         hist_path = f"{out_seed}/conf_hist_{budget_tag}.json"
         with open(hist_path, "w", encoding="utf-8") as f:
             json.dump(conf_hist, f)
         dev_rand = random_expected_metrics(dev_ex, conf_hist)
         test_rand = random_expected_metrics(test_ex, conf_hist)
 
-        # -------- Stability: compute-matched in expectation via 2-point mixture (avoid trivial fixed replica when possible)
+        # ---- Stability (mixture)  <-- FIXED: use wrappers with (m, min_step)
         stab_mix = choose_stability_mix(dev_ex, target_tokens, calibrator, seed, tier_k=B)
         if stab_mix.mode == "single":
             m = int(stab_mix.m)
@@ -317,13 +306,18 @@ for seed in SEEDS:
             test_stab = edr.evaluate(test_ex, policy="stability", m=m, min_step=min_step, seed=seed, calibrator=calibrator)
         else:
             assert stab_mix.low is not None and stab_mix.high is not None and stab_mix.p_low is not None
-            dev_low = stab_mix.low
-            dev_high = stab_mix.high
-            # Extract params from evaluate output fields
-            m_low = int(dev_low.get("m", 2)); ms_low = int(dev_low.get("min_step", 1))
-            m_high = int(dev_high.get("m", 2)); ms_high = int(dev_high.get("min_step", 1))
+            low_w = stab_mix.low
+            high_w = stab_mix.high
+
+            dev_low = low_w["res"]
+            dev_high = high_w["res"]
+
+            m_low, ms_low = int(low_w["m"]), int(low_w["min_step"])
+            m_high, ms_high = int(high_w["m"]), int(high_w["min_step"])
+
             test_low = edr.evaluate(test_ex, policy="stability", m=m_low, min_step=ms_low, seed=seed, calibrator=calibrator)
             test_high = edr.evaluate(test_ex, policy="stability", m=m_high, min_step=ms_high, seed=seed, calibrator=calibrator)
+
             dev_stab = mix_metrics(float(stab_mix.p_low), dev_low, dev_high)
             test_stab = mix_metrics(float(stab_mix.p_low), test_low, test_high)
 
@@ -338,18 +332,20 @@ for seed in SEEDS:
                 "mean_steps": float(res["mean_steps"]),
             }
 
-        rows.extend([
-            pack("dev", "fixed", dev_fixed),
-            pack("test", "fixed", test_fixed),
-            pack("dev", "conf", dev_conf),
-            pack("test", "conf", test_conf),
-            pack("dev", "random", dev_rand),
-            pack("test", "random", test_rand),
-            pack("dev", "stability", dev_stab),
-            pack("test", "stability", test_stab),
-            pack("dev", "oracle", dev_or),
-            pack("test", "oracle", test_or),
-        ])
+        rows.extend(
+            [
+                pack("dev", "fixed", dev_fixed),
+                pack("test", "fixed", test_fixed),
+                pack("dev", "conf", dev_conf),
+                pack("test", "conf", test_conf),
+                pack("dev", "random", dev_rand),
+                pack("test", "random", test_rand),
+                pack("dev", "stability", dev_stab),
+                pack("test", "stability", test_stab),
+                pack("dev", "oracle", dev_or),
+                pack("test", "oracle", test_or),
+            ]
+        )
 
     save_summary(f"{out_seed}/summary.csv", rows)
     print(f"Wrote {out_seed}/summary.csv")
@@ -368,7 +364,6 @@ print(f"Wrote {long_path}")
 
 
 # Save compact test table with mean over seeds (acc/tokens)
-# (Used by existing plotting scripts)
 from collections import defaultdict
 import statistics
 
@@ -381,16 +376,18 @@ for (policy, budget_tag), items in sorted(group.items(), key=lambda x: (x[0][0],
     accs = [float(it["acc"]) for it in items]
     toks = [float(it["mean_tokens"]) for it in items]
     stps = [float(it["mean_steps"]) for it in items]
-    compact_rows.append({
-        "policy": policy,
-        "budget_tag": budget_tag,
-        "acc_mean": statistics.mean(accs),
-        "acc_std": statistics.pstdev(accs) if len(accs) > 1 else 0.0,
-        "tokens_mean": statistics.mean(toks),
-        "tokens_std": statistics.pstdev(toks) if len(toks) > 1 else 0.0,
-        "steps_mean": statistics.mean(stps),
-        "steps_std": statistics.pstdev(stps) if len(stps) > 1 else 0.0,
-    })
+    compact_rows.append(
+        {
+            "policy": policy,
+            "budget_tag": budget_tag,
+            "acc_mean": statistics.mean(accs),
+            "acc_std": statistics.pstdev(accs) if len(accs) > 1 else 0.0,
+            "tokens_mean": statistics.mean(toks),
+            "tokens_std": statistics.pstdev(toks) if len(toks) > 1 else 0.0,
+            "steps_mean": statistics.mean(stps),
+            "steps_std": statistics.pstdev(stps) if len(stps) > 1 else 0.0,
+        }
+    )
 
 compact_path = f"{OUTROOT}/paper_table_test_acc_tokens.csv"
 with open(compact_path, "w", newline="", encoding="utf-8") as f:
