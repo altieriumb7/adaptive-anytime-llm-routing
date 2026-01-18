@@ -41,6 +41,19 @@ def make_threshold_grid() -> List[float]:
     grid = [max(0.0, min(1.0 - 1e-15, float(x))) for x in grid]
     return sorted(set(grid))
 
+def random_expected_metrics(examples, stop_hist):
+    stop_hist = pad_hist(stop_hist, T_MAX)
+    n = len(examples)
+    acc = steps = toks = 0.0
+    for ex in examples:
+        gold, stps = edr.extract_steps(ex)
+        cum = edr.compute_prefix_tokens(stps)
+        for i, p in enumerate(stop_hist, start=1):
+            steps += p * i
+            toks  += p * cum[i-1]
+            acc   += p * (1.0 if stps[i-1].ans == gold else 0.0)
+    return {"acc": acc/n, "mean_steps": steps/n, "mean_tokens": toks/n, "stop_histogram": stop_hist}
+
 
 THS = make_threshold_grid()
 STAB_GRID = [(m, min_step) for m in [1, 2, 3, 4] for min_step in [1, 2, 3, 4]]
@@ -110,15 +123,16 @@ def choose_conf_mix(dev_examples, target_tokens: float, calibrator: Optional[Con
         r = edr.evaluate(dev_examples, policy="conf", threshold=float(th), seed=seed, calibrator=calibrator)
         cands.append((float(r["mean_tokens"]), {"th": float(th), "res": r}))
     # build bracket (by mean_tokens)
-    low_wrap, high_wrap = pick_bracket_by_tokens([(mt, w["res"]) for mt, w in cands], target_tokens)
+    low_wrap, high_wrap = pick_bracket_by_tokens([(mt, w) for mt, w in cands], target_tokens)
 
     # If exact-ish with a single threshold, take it
     best_single = min([w for _, w in cands], key=lambda w: abs(float(w["res"]["mean_tokens"]) - target_tokens))
     if abs(float(best_single["res"]["mean_tokens"]) - target_tokens) < 1e-6:
         return Mix(mode="single", th=float(best_single["th"]), desc=f"single th={best_single['th']:.6g}")
 
-    low = low_wrap
-    high = high_wrap
+    low = low_wrap["res"]
+    high = high_wrap["res"]
+
     mu_low = float(low["mean_tokens"])
     mu_high = float(high["mean_tokens"])
     if abs(mu_high - mu_low) < 1e-12:
@@ -129,7 +143,7 @@ def choose_conf_mix(dev_examples, target_tokens: float, calibrator: Optional[Con
     p_low = (mu_high - target_tokens) / (mu_high - mu_low)
     p_low = max(0.0, min(1.0, float(p_low)))
 
-    return Mix(mode="mix", p_low=p_low, low=low, high=high, desc=f"mix conf p_low={p_low:.3f}")
+    return Mix(mode="mix", p_low=p_low, low=low_wrap, high=high_wrap, desc=f"mix conf p_low={p_low:.3f}")
 
 
 def stability_is_trivial_fixed(m: int, min_step: int, tier_k: int) -> bool:
@@ -271,12 +285,15 @@ for seed in SEEDS:
         else:
             assert conf_mix.low is not None and conf_mix.high is not None and conf_mix.p_low is not None
             # low/high are *res dicts* here
-            dev_low = conf_mix.low
-            dev_high = conf_mix.high
-            # Need corresponding TEST low/high => re-evaluate by extracting thresholds from dev_low/high
-            # We stored thresholds inside evaluate output field "threshold"
-            th_low = float(dev_low.get("threshold", 0.0))
-            th_high = float(dev_high.get("threshold", 0.0))
+            low_w = conf_mix.low
+            high_w = conf_mix.high
+            assert low_w is not None and high_w is not None
+
+            dev_low = low_w["res"]
+            dev_high = high_w["res"]
+            th_low = float(low_w["th"])
+            th_high = float(high_w["th"])
+
             test_low = edr.evaluate(test_ex, policy="conf", threshold=th_low, seed=seed, calibrator=calibrator)
             test_high = edr.evaluate(test_ex, policy="conf", threshold=th_high, seed=seed, calibrator=calibrator)
 
@@ -288,8 +305,8 @@ for seed in SEEDS:
         hist_path = f"{out_seed}/conf_hist_{budget_tag}.json"
         with open(hist_path, "w", encoding="utf-8") as f:
             json.dump(conf_hist, f)
-        dev_rand = edr.evaluate(dev_ex, policy="random", random_hist_path=hist_path, seed=seed)
-        test_rand = edr.evaluate(test_ex, policy="random", random_hist_path=hist_path, seed=seed)
+        dev_rand = random_expected_metrics(dev_ex, conf_hist)
+        test_rand = random_expected_metrics(test_ex, conf_hist)
 
         # -------- Stability: compute-matched in expectation via 2-point mixture (avoid trivial fixed replica when possible)
         stab_mix = choose_stability_mix(dev_ex, target_tokens, calibrator, seed, tier_k=B)
