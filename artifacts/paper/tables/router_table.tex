@@ -1,0 +1,20 @@
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{lYYYY}
+\toprule
+Policy (test, mean$\pm$std over seeds) & B1 & B2 & B3 & B4 \\
+\midrule
+Fixed & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6603$\pm$0.0244 (256$\pm$0, 2.00$\pm$0.00) & 0.6540$\pm$0.0311 (480$\pm$0, 3.00$\pm$0.00) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
+\addlinespace
+Confidence & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6937$\pm$0.0063 (260$\pm$19, 1.80$\pm$0.07) & 0.6654$\pm$0.0201 (483$\pm$17, 2.82$\pm$0.07) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
+Random (matched) & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6494$\pm$0.0224 (256$\pm$0, 1.78$\pm$0.08) & 0.6561$\pm$0.0217 (480$\pm$0, 2.81$\pm$0.02) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
+Stability (tuned) & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6710$\pm$0.0251 (258$\pm$5, 1.83$\pm$0.02) & 0.6844$\pm$0.0305 (484$\pm$10, 2.93$\pm$0.03) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
+Oracle & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) \\
+\bottomrule
+\end{tabularx}
+\caption{Test performance across compute tiers (accuracy; mean tokens and mean steps in parentheses). Values are mean$\pm$std over three split seeds.}
+\label{tab:main_results_allbudgets}
+\end{table*}
