@@ -45,12 +45,7 @@ def canonicalize_response(raw: str, answer: Optional[str], conf: Optional[float]
         return f"{body}\n#### {answer}\nCONF: {p_str}"
     return f"#### {answer}\nCONF: {p_str}"
 
-
-def make_messages(problem: str, budget_t: int) -> List[Dict[str, str]]:
-    """
-    Chat-style messages for instruct models (Qwen/Llama/Mistral).
-    We'll use tokenizer.apply_chat_template downstream.
-    """
+def make_messages(problem: str, budget_t: int, task: str = "math") -> List[Dict[str, str]]:
     budget_desc = {
         1: "BUDGET=1 (draft, very short)",
         2: "BUDGET=2 (re-solve, medium)",
@@ -58,6 +53,26 @@ def make_messages(problem: str, budget_t: int) -> List[Dict[str, str]]:
         4: "BUDGET=4 (repair/final, full)",
     }.get(budget_t, f"BUDGET={budget_t}")
 
+    task = (task or "math").lower().strip()
+
+    if task in {"yesno", "boolq", "strategyqa"}:
+        system = (
+            "You are a careful question-answering assistant. "
+            "You must follow the required output format exactly."
+        )
+        user = (
+            f"{budget_desc}\n\n"
+            "Answer the question.\n\n"
+            "Output format MUST be:\n"
+            "- brief reasoning (can be short)\n"
+            "- final line: #### <final_answer>\n"
+            "- confidence line: CONF: <number between 0 and 1>\n\n"
+            "IMPORTANT: final_answer MUST be either 'yes' or 'no'.\n\n"
+            f"INPUT:\n{problem}"
+        )
+        return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+    # default: math
     system = (
         "You are a careful math solver. "
         "You must follow the required output format exactly."
@@ -161,7 +176,7 @@ def build_sft_examples(
                 SFTExample(
                     uid=uid,
                     budget_t=t,
-                    messages=make_messages(problem, budget_t=t),
+                    messages = make_messages(problem, budget_t=t, task=task),
                     response=response,
                     gold=gold,
                     meta=meta,

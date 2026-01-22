@@ -14,6 +14,63 @@ from datasets import load_dataset
 
 # GSM8K answers are often like: "... #### 42"
 GSM8K_FINAL_RE = re.compile(r"####\s*(.+?)\s*$", re.MULTILINE)
+def _split_or_validation(split: str) -> str:
+    s = (split or "").lower().strip()
+    # molti dataset QA non hanno label in test -> usiamo validation come "test"
+    return "validation" if s == "test" else s
+
+
+def load_boolq(split: str = "train") -> List[Example]:
+    sp = _split_or_validation(split)
+    ds = load_dataset("super_glue", "boolq", split=sp)
+    out: List[Example] = []
+
+    for i, row in enumerate(ds):
+        passage = str(row.get("passage", "")).strip()
+        question = str(row.get("question", "")).strip()
+        problem = f"PASSAGE:\n{passage}\n\nQUESTION:\n{question}\n\nAnswer yes or no."
+
+        lab = row.get("label", None)
+        gold = ""
+        if lab is not None:
+            gold = "yes" if int(lab) == 1 else "no"
+
+        out.append(
+            Example(
+                uid=f"boolq_{sp}_{i}",
+                problem=problem,
+                gold=normalize_answer(gold),
+                meta={"dataset": "boolq", "split": sp, "task": "yesno"},
+            )
+        )
+    return out
+
+
+def load_strategyqa(split: str = "train") -> List[Example]:
+    sp = _split_or_validation(split)
+    ds = load_dataset("strategyqa", split=sp)
+    out: List[Example] = []
+
+    for i, row in enumerate(ds):
+        q = str(row.get("question", "")).strip()
+        problem = f"QUESTION:\n{q}\n\nAnswer yes or no."
+
+        ans = row.get("answer", None)
+        gold = ""
+        if isinstance(ans, bool):
+            gold = "yes" if ans else "no"
+        elif ans is not None:
+            gold = "yes" if int(ans) == 1 else "no"
+
+        out.append(
+            Example(
+                uid=f"strategyqa_{sp}_{i}",
+                problem=problem,
+                gold=normalize_answer(gold),
+                meta={"dataset": "strategyqa", "split": sp, "task": "yesno"},
+            )
+        )
+    return out
 
 def normalize_answer(ans: str) -> str:
     """Lightweight, shared normalization.

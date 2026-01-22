@@ -68,7 +68,14 @@ def load_model(base_model: str, adapter_dir: Optional[str]) -> Tuple[Any, Any]:
     return tok, model
 
 
-def generate(model, tok, prompt: str, max_new_tokens: int) -> str:
+def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool = True):
+    """
+    Returns:
+      text (str),
+      stats (dict): prompt_tokens, gen_tokens, total_tokens, avg_nll (optional)
+    """
+    import torch
+
     inputs = tok(prompt, return_tensors="pt")
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
@@ -79,18 +86,43 @@ def generate(model, tok, prompt: str, max_new_tokens: int) -> str:
             do_sample=False,
             pad_token_id=tok.eos_token_id,
             eos_token_id=tok.eos_token_id,
+            return_dict_in_generate=True,
+            output_scores=bool(compute_nll),
         )
-    prefix_len = inputs["input_ids"].shape[1]
-    gen = out[0][prefix_len:]
-    text = tok.decode(gen, skip_special_tokens=True)
-    return text.strip()
+
+    seq = out.sequences[0]
+    prefix_len = int(inputs["input_ids"].shape[1])
+    gen_ids = seq[prefix_len:]
+    gen_tokens = int(gen_ids.shape[0])
+
+    text = tok.decode(gen_ids, skip_special_tokens=True).strip()
+
+    stats = {
+        "prompt_tokens": prefix_len,
+        "gen_tokens": gen_tokens,
+        "total_tokens": int(seq.shape[0]),
+    }
+
+    if compute_nll and gen_tokens > 0:
+        # avg negative log-likelihood of chosen tokens (greedy)
+        nll_sum = 0.0
+        # out.scores is a tuple length == gen_tokens; each is [batch, vocab]
+        for j, logits in enumerate(out.scores):
+            # logits: (1, vocab)
+            logp = torch.log_softmax(logits[0], dim=-1)
+            tid = int(gen_ids[j].item())
+            nll_sum += float(-logp[tid].item())
+        stats["avg_nll"] = nll_sum / max(1, gen_tokens)
+
+    return text, stats
+
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base_model", required=True)
     ap.add_argument("--adapter_dir", default=None, help="LoRA adapter dir (or none for baseline)")
-    ap.add_argument("--dataset", default="gsm8k", choices=["gsm8k", "math", "svamp"])
+    ap.add_argument("--dataset", default="gsm8k", choices=["gsm8k", "math", "svamp", "boolq", "strategyqa"])
     ap.add_argument("--split", default="test", choices=["train", "test"])
     ap.add_argument("--max_examples", type=int, default=500)
     ap.add_argument("--budgets", default="1,2,4")
@@ -139,11 +171,8 @@ def main():
             messages[-1]["content"] += "\n\nIMPORTANT: Reply with EXACTLY two lines and nothing else:\n#### <final_number>\nCONF: <0-1>\n"
 
             prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            out = generate(model, tok, prompt, max_new_tokens=mnt)
-
-            ans, conf = parse_answer_and_conf(out)
-
-            # --- optional JSONL dump (one row per (uid, budget)) ---
+            out_text, stats = generate(model, tok, prompt, max_new_tokens=mnt, compute_nll=True)
+            ans, conf = parse_answer_and_conf(out_text)
 
             if save_jsonl_fh is not None:
 
@@ -164,25 +193,22 @@ def main():
                     corr = 0
 
                 row = {
-
                     "uid": uid,
-
-                    "t": int(t) if "t" in locals() else None,
-
+                    "t": int(t),
                     "max_new_tokens": int(mnt),
 
+                    # NEW: real compute + logprob proxy
+                    "gen_tokens": int(stats.get("gen_tokens", 0)),
+                    "prompt_tokens": int(stats.get("prompt_tokens", 0)),
+                    "total_tokens": int(stats.get("total_tokens", 0)),
+                    "avg_nll": stats.get("avg_nll", None),
+
                     "problem": prob,
-
                     "gold": gold,
-
-                    "raw_text": out,
-
+                    "raw_text": out_text,
                     "answer": ans,
-
                     "conf": conf,
-
                     "correct": corr,
-
                 }
 
                 save_jsonl_fh.write(json.dumps(row, ensure_ascii=False) + "\n")

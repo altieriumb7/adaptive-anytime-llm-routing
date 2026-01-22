@@ -13,6 +13,24 @@ _NUM_RE = re.compile(r"^-?\d+(?:\.\d+)?$")
 _FRAC_RE = re.compile(r"^\s*(-?\d+)\s*/\s*(-?\d+)\s*$")
 _LATEX_FRAC_RE = re.compile(r"^\s*\\(?:d)?frac\{\s*(-?\d+)\s*\}\{\s*(-?\d+)\s*\}\s*$")
 
+def _canon_yn(s: str) -> str:
+    x = (s or "").strip().lower()
+    x = re.sub(r"\s+", " ", x)
+    if x in {"yes", "y", "true", "t", "1"}:
+        return "yes"
+    if x in {"no", "n", "false", "f", "0"}:
+        return "no"
+    return x
+
+
+def _canon_text(s: str) -> str:
+    x = (s or "").strip().lower()
+    x = re.sub(r"\s+", " ", x)
+    x = re.sub(r"^the\s+answer\s+is\s+", "", x)
+    x = re.sub(r"[^a-z0-9\s\-\./]", "", x)
+    x = re.sub(r"\s+", " ", x).strip()
+    return _canon_yn(x)
+
 
 def _strip_math_wrappers(s: str) -> str:
     if s is None:
@@ -83,6 +101,8 @@ def is_correct(pred: Optional[str], gold: str, tol: float = 1e-9) -> bool:
     g = _strip_math_wrappers(normalize_answer(str(gold)))
 
     if p == g:
+        return True
+    if _canon_text(p) == _canon_text(g):
         return True
 
     pn = _to_number(p)
