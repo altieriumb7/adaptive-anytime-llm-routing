@@ -223,63 +223,47 @@ def main():
     for ex in tqdm(examples, desc="eval"):
         first_correct = None
         for t, mnt in zip(budgets, max_new_tokens):
-            messages = make_messages(ex.problem, budget_t=t)
-            # Force short, parseable output (helps base model finish within token budget)
-            messages[-1]["content"] += "\n\nIMPORTANT: Reply with EXACTLY two lines and nothing else:\n#### <final_number>\nCONF: <0-1>\n"
+            task = "math"
+            meta = getattr(ex, "meta", None)
+            if isinstance(meta, dict):
+                task = meta.get("task", "math")
+
+            messages = make_messages(ex.problem, budget_t=t, task=task)
+
+            # Enforce parseable ending (but DO NOT restrict to exactly two lines)
+            messages[-1]["content"] += (
+                "\n\nIMPORTANT: End your response with:\n"
+                "#### <final_answer>\n"
+                "CONF: <0-1>\n"
+            )
 
             prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             out_text, stats = generate_with_stats(model, tok, prompt, max_new_tokens=mnt)
             ans, conf = parse_answer_and_conf(out_text)
 
-
+            ok = is_correct(ans, ex.gold)
 
             if save_jsonl_fh is not None:
-
-                import json
-
-                uid = getattr(ex, "uid", None)
-
-                prob = getattr(ex, "problem", None)
-
-                gold = getattr(ex, "gold", None)
-
-                try:
-
-                    corr = int(is_correct(ans, gold))
-
-                except Exception:
-
-                    corr = 0
-
                 row = {
-                    "uid": uid,
+                    "uid": ex.uid,
                     "t": int(t),
+
+                    # budget proxy
                     "max_new_tokens": int(mnt),
 
-                    # NEW: real compute + logprob proxy
+                    # real token counts
                     "gen_tokens": int(stats.get("gen_tokens", 0)),
                     "prompt_tokens": int(stats.get("prompt_tokens", 0)),
                     "total_tokens": int(stats.get("total_tokens", 0)),
-                    "avg_nll": stats.get("avg_nll", None),
 
-                    "problem": prob,
-                    "gold": gold,
+                    "problem": ex.problem,
+                    "gold": ex.gold,
                     "raw_text": out_text,
                     "answer": ans,
                     "conf": conf,
-                    "correct": corr,
-                    "max_new_tokens": int(mnt),
-
-                    # NEW:
-                    "gen_tokens": int(stats["gen_tokens"]),
-                    "prompt_tokens": int(stats["prompt_tokens"]),
-                    "total_tokens": int(stats["total_tokens"]),
-
-                    "raw_text": out_text,
-                    "answer": ans,
-                    "conf": conf,
+                    "correct": int(ok),
+                    "meta": ex.meta,
                 }
-
                 save_jsonl_fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
             ok = is_correct(ans, ex.gold)

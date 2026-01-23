@@ -295,4 +295,8 @@ def load_dataset_by_name(name: str, split: str = "train") -> List[Example]:
         return load_math(split=split)
     if name in ("svamp",):
         return load_svamp(split=split)
+    if name in ("boolq",):
+        return load_boolq(split=split)
+    if name in ("strategyqa", "strategy_qa"):
+        return load_strategyqa(split=split)
     raise ValueError(f"Unknown dataset name: {name}")
