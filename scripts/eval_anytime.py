@@ -53,7 +53,7 @@ def auc_accuracy(acc_by_t: Dict[int, float]) -> float:
 
 
 def load_model(base_model: str, adapter_dir: Optional[str]) -> Tuple[Any, Any]:
-    tok = AutoTokenizer.from_pretrained(adapter_dir or base_model, use_fast=True)
+    tok = AutoTokenizer.from_pretrained(base_model, use_fast=True)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
 
