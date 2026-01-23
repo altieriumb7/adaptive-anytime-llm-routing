@@ -31,6 +31,32 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 from src.calibration.conf_calibrator import ConfidenceCalibrator
 
+import os
+
+ROUTER_TOKEN_KEY = (os.environ.get("ROUTER_TOKEN_KEY") or "allocated").lower().strip()
+_WARNED_MISSING_GEN = False
+
+def _pick_tokens(row):
+    """
+    allocated -> uses max_new_tokens (current behavior)
+    generated -> uses gen_tokens (requires eval_anytime to write it)
+    auto -> uses gen_tokens if present else max_new_tokens
+    """
+    global _WARNED_MISSING_GEN
+    if ROUTER_TOKEN_KEY in {"generated", "gen", "gen_tokens"}:
+        v = row.get("gen_tokens", None)
+        if v is None:
+            if not _WARNED_MISSING_GEN:
+                print("[WARN] ROUTER_TOKEN_KEY=generated but gen_tokens missing in JSONL. Falling back to max_new_tokens.")
+                _WARNED_MISSING_GEN = True
+            return row.get("max_new_tokens", None)
+        return v
+
+    if ROUTER_TOKEN_KEY in {"auto"}:
+        return row.get("gen_tokens", None) or row.get("max_new_tokens", None)
+
+    # default: allocated/budget
+    return row.get("max_new_tokens", None)
 
 @dataclass
 class Step:

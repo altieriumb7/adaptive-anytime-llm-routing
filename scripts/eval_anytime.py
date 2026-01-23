@@ -67,6 +67,34 @@ def load_model(base_model: str, adapter_dir: Optional[str]) -> Tuple[Any, Any]:
     model.eval()
     return tok, model
 
+def load_boolq(split: str, max_examples: int = None):
+    from datasets import load_dataset
+
+    # BoolQ has train/validation; if user asks test, map to validation
+    sp = split
+    if sp == "test":
+        sp = "validation"
+
+    ds = load_dataset("super_glue", "boolq", split=sp)
+    examples = []
+
+    for i, row in enumerate(ds):
+        passage = str(row["passage"]).strip()
+        question = str(row["question"]).strip()
+        gold = "yes" if int(row["label"]) == 1 else "no"
+
+        problem = (
+            f"PASSAGE:\n{passage}\n\n"
+            f"QUESTION:\n{question}\n\n"
+            "Answer yes or no."
+        )
+        examples.append({"uid": f"boolq_{sp}_{i}", "problem": problem, "gold": gold})
+
+        if max_examples and len(examples) >= max_examples:
+            break
+
+    return examples
+
 
 def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool = True):
     """
@@ -116,13 +144,42 @@ def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool 
 
     return text, stats
 
+def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
+    import torch
+
+    inputs = tok(prompt, return_tensors="pt")
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+    with torch.inference_mode():
+        out = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=tok.eos_token_id,
+            eos_token_id=tok.eos_token_id,
+            return_dict_in_generate=True,
+        )
+
+    seq = out.sequences[0]
+    prompt_len = int(inputs["input_ids"].shape[1])
+    gen_ids = seq[prompt_len:]
+    gen_tokens = int(gen_ids.shape[0])
+
+    text = tok.decode(gen_ids, skip_special_tokens=True).strip()
+
+    stats = {
+        "prompt_tokens": prompt_len,
+        "gen_tokens": gen_tokens,
+        "total_tokens": int(seq.shape[0]),
+    }
+    return text, stats
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base_model", required=True)
     ap.add_argument("--adapter_dir", default=None, help="LoRA adapter dir (or none for baseline)")
-    ap.add_argument("--dataset", default="gsm8k", choices=["gsm8k", "math", "svamp", "boolq", "strategyqa"])
+    ap.add_argument("--dataset", default="gsm8k", choices=["gsm8k","math", "svamp", "boolq","strategyqa"])
     ap.add_argument("--split", default="test", choices=["train", "test"])
     ap.add_argument("--max_examples", type=int, default=500)
     ap.add_argument("--budgets", default="1,2,4")
@@ -171,8 +228,10 @@ def main():
             messages[-1]["content"] += "\n\nIMPORTANT: Reply with EXACTLY two lines and nothing else:\n#### <final_number>\nCONF: <0-1>\n"
 
             prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            out_text, stats = generate(model, tok, prompt, max_new_tokens=mnt, compute_nll=True)
+            out_text, stats = generate_with_stats(model, tok, prompt, max_new_tokens=mnt)
             ans, conf = parse_answer_and_conf(out_text)
+
+
 
             if save_jsonl_fh is not None:
 
@@ -209,6 +268,16 @@ def main():
                     "answer": ans,
                     "conf": conf,
                     "correct": corr,
+                    "max_new_tokens": int(mnt),
+
+                    # NEW:
+                    "gen_tokens": int(stats["gen_tokens"]),
+                    "prompt_tokens": int(stats["prompt_tokens"]),
+                    "total_tokens": int(stats["total_tokens"]),
+
+                    "raw_text": out_text,
+                    "answer": ans,
+                    "conf": conf,
                 }
 
                 save_jsonl_fh.write(json.dumps(row, ensure_ascii=False) + "\n")
