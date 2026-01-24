@@ -15,6 +15,23 @@ from src.train.sft_build import make_messages
 from src.data.load_datasets import load_dataset_by_name
 from src.data.judging import is_correct
 from src.calibration.conf_calibrator import ConfidenceCalibrator
+import re
+from transformers import StoppingCriteria, StoppingCriteriaList
+
+class StopAfterAnswerAndConf(StoppingCriteria):
+    """
+    Stop when the generated text contains:
+      #### (yes|no)  AND  CONF: <float>
+    """
+    def __init__(self, tokenizer):
+        super().__init__()
+        self.tok = tokenizer
+        self.pattern = re.compile(r"####\s*(yes|no)\s*\n\s*CONF\s*:\s*([01](?:\.\d+)?)", re.IGNORECASE)
+
+    def __call__(self, input_ids, scores, **kwargs):
+        # decode only recent tail to keep it fast
+        tail = self.tok.decode(input_ids[0][-80:], skip_special_tokens=False)
+        return self.pattern.search(tail) is not None
 
 
 def brier_score(confs: List[float], corrects: List[int]) -> float:
@@ -151,13 +168,15 @@ def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
     with torch.inference_mode():
+        stopping = StoppingCriteriaList([StopAfterAnswerAndConf(tok)])
+
         out = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=False,
             pad_token_id=tok.eos_token_id,
             eos_token_id=tok.eos_token_id,
-            return_dict_in_generate=True,
+            stopping_criteria=stopping,
         )
 
     seq = out.sequences[0]
@@ -232,15 +251,14 @@ def main():
 
             if str(task).lower() in {"yesno", "boolq", "strategyqa"}:
                 messages[-1]["content"] += (
-                    "\n\nSTRICT OUTPUT FORMAT (do not deviate):\n"
-                    "Write your reasoning freely, but the LAST TWO LINES must be EXACTLY:\n"
+                    "\n\nSTRICT OUTPUT FORMAT. PRINT ONLY THESE TWO LINES AND NOTHING ELSE:\n"
                     "#### yes\n"
                     "CONF: 0.73\n\n"
                     "Rules:\n"
-                    "- The final answer must be exactly 'yes' or 'no' (lowercase).\n"
-                    "- Do NOT print angle brackets <> or placeholders.\n"
-                    "- Do NOT use LaTeX.\n"
-                    "- CONF must be a number in [0,1].\n"
+                    "- Output must be EXACTLY two lines.\n"
+                    "- First line must be: #### yes OR #### no (lowercase).\n"
+                    "- Second line must be: CONF: <number between 0 and 1>.\n"
+                    "- Do not include explanations, extra text, angle brackets <> or LaTeX.\n"
                 )
             else:
                 messages[-1]["content"] += (
