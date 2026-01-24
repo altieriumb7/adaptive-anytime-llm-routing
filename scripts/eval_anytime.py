@@ -230,12 +230,24 @@ def main():
 
             messages = make_messages(ex.problem, budget_t=t, task=task)
 
-            # Enforce parseable ending (but DO NOT restrict to exactly two lines)
-            messages[-1]["content"] += (
-                "\n\nIMPORTANT: End your response with:\n"
-                "#### <final_answer>\n"
-                "CONF: <0-1>\n"
-            )
+            if str(task).lower() in {"yesno", "boolq", "strategyqa"}:
+                messages[-1]["content"] += (
+                    "\n\nSTRICT OUTPUT FORMAT (do not deviate):\n"
+                    "Write your reasoning freely, but the LAST TWO LINES must be EXACTLY:\n"
+                    "#### yes\n"
+                    "CONF: 0.73\n\n"
+                    "Rules:\n"
+                    "- The final answer must be exactly 'yes' or 'no' (lowercase).\n"
+                    "- Do NOT print angle brackets <> or placeholders.\n"
+                    "- Do NOT use LaTeX.\n"
+                    "- CONF must be a number in [0,1].\n"
+                )
+            else:
+                messages[-1]["content"] += (
+                    "\n\nIMPORTANT: End your response with:\n"
+                    "#### <final_answer>\n"
+                    "CONF: <0-1>\n"
+                )
 
             prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             out_text, stats = generate_with_stats(model, tok, prompt, max_new_tokens=mnt)
