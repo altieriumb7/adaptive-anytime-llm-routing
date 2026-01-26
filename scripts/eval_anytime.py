@@ -17,6 +17,18 @@ from src.data.judging import is_correct
 from src.calibration.conf_calibrator import ConfidenceCalibrator
 import re
 from transformers import StoppingCriteria, StoppingCriteriaList
+FORMAT_SUFFIX = (
+  "\n\nSTRICT OUTPUT FORMAT.\n"
+  "End with EXACTLY these two lines:\n"
+  "#### <final_answer>\n"
+  "CONF: <p>\n"
+  "Rules:\n"
+  "- <final_answer> must be a single number (no words, no LaTeX, no units).\n"
+  "- <p> must be a decimal between 0 and 1.\n"
+  "- Do not write anything after the CONF line.\n"
+)
+
+prompt = prompt + FORMAT_SUFFIX
 
 class StopAfterAnswerAndConf(StoppingCriteria):
     """
@@ -26,11 +38,14 @@ class StopAfterAnswerAndConf(StoppingCriteria):
     def __init__(self, tokenizer):
         super().__init__()
         self.tok = tokenizer
-        self.pattern = re.compile(r"####\s*(yes|no)\s*\n\s*CONF\s*:\s*([01](?:\.\d+)?)", re.IGNORECASE)
+        self.pattern = re.compile(
+            r"####\s*([^\n\r]+)\s*[\n\r]+\s*CONF\s*:\s*([01](?:\.\d+)?)",
+            re.IGNORECASE
+        )
 
     def __call__(self, input_ids, scores, **kwargs):
         # decode only recent tail to keep it fast
-        tail = self.tok.decode(input_ids[0][-80:], skip_special_tokens=False)
+        tail = self.tok.decode(input_ids[0][-256:], skip_special_tokens=False)
         return self.pattern.search(tail) is not None
 
 
