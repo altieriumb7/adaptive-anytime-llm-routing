@@ -183,6 +183,38 @@ def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool 
 
     return text, stats
 
+def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
+    import torch
+
+    inputs = tok(prompt, return_tensors="pt")
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    prompt_len = int(inputs["input_ids"].shape[1])
+
+    with torch.inference_mode():
+        stopping = StoppingCriteriaList([StopAfterAnswerAndConf(tok, prompt_len=prompt_len)])
+
+        out = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=tok.eos_token_id,
+            eos_token_id=tok.eos_token_id,
+            stopping_criteria=stopping,
+            return_dict_in_generate=True,   # IMPORTANT
+        )
+
+    seq = out.sequences[0]
+    gen_ids = seq[prompt_len:]
+    gen_tokens = int(gen_ids.shape[0])
+
+    text = tok.decode(gen_ids, skip_special_tokens=True).strip()
+
+    stats = {
+        "prompt_tokens": prompt_len,
+        "gen_tokens": gen_tokens,
+        "total_tokens": int(seq.shape[0]),
+    }
+    return text, stats
 
 
 def main():
