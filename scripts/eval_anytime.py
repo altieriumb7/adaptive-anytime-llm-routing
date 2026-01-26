@@ -135,7 +135,7 @@ def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool 
             output_scores=bool(compute_nll),
         )
 
-    seq = out.sequences[0]
+    seq = out.sequences[0] if hasattr(out, "sequences") else out[0]
     prefix_len = int(inputs["input_ids"].shape[1])
     gen_ids = seq[prefix_len:]
     gen_tokens = int(gen_ids.shape[0])
@@ -179,7 +179,7 @@ def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
             stopping_criteria=stopping,
         )
 
-    seq = out.sequences[0]
+    seq = out.sequences[0] if hasattr(out, "sequences") else out[0]
     prompt_len = int(inputs["input_ids"].shape[1])
     gen_ids = seq[prompt_len:]
     gen_tokens = int(gen_ids.shape[0])
