@@ -32,20 +32,26 @@ FORMAT_SUFFIX = (
 
 class StopAfterAnswerAndConf(StoppingCriteria):
     """
-    Stop when the generated text contains:
-      #### <answer>  AND  CONF: <float>
+    Stop when the GENERATED text (excluding the prompt) contains:
+      #### <something>  AND  CONF: <float>
     """
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer, prompt_len: int, min_gen_tokens: int = 4):
         super().__init__()
         self.tok = tokenizer
+        self.prompt_len = int(prompt_len)
+        self.min_gen_tokens = int(min_gen_tokens)
         self.pattern = re.compile(
             r"####\s*([^\n\r]+)\s*[\n\r]+\s*CONF\s*:\s*([01](?:\.\d+)?)",
             re.IGNORECASE
         )
 
     def __call__(self, input_ids, scores, **kwargs):
-        # decode only recent tail to keep it fast
-        tail = self.tok.decode(input_ids[0][-256:], skip_special_tokens=False)
+        # only look at generated tokens (exclude the prompt)
+        gen_ids = input_ids[0][self.prompt_len:]
+        if gen_ids.numel() < self.min_gen_tokens:
+            return False
+        tail_ids = gen_ids[-256:]
+        tail = self.tok.decode(tail_ids, skip_special_tokens=False)
         return self.pattern.search(tail) is not None
 
 
@@ -178,37 +184,6 @@ def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool 
     return text, stats
 
 
-def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
-    inputs = tok(prompt, return_tensors="pt")
-    inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
-    with torch.inference_mode():
-        stopping = StoppingCriteriaList([StopAfterAnswerAndConf(tok)])
-
-        out = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-            pad_token_id=tok.eos_token_id,
-            eos_token_id=tok.eos_token_id,
-            stopping_criteria=stopping,
-            return_dict_in_generate=True,  # FIX: ensure .sequences exists
-        )
-
-    seq = out.sequences[0] if hasattr(out, "sequences") else out[0]
-    prompt_len = int(inputs["input_ids"].shape[1])
-    gen_ids = seq[prompt_len:]
-    gen_tokens = int(gen_ids.shape[0])
-
-    text = tok.decode(gen_ids, skip_special_tokens=True).strip()
-
-    stats = {
-        "prompt_tokens": prompt_len,
-        "gen_tokens": gen_tokens,
-        "total_tokens": int(seq.shape[0]),
-    }
-    return text, stats
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -269,26 +244,26 @@ def main():
             if task_lower in {"yesno", "boolq", "strategyqa"}:
                 messages[-1]["content"] += (
                     "\n\nSTRICT OUTPUT FORMAT. PRINT ONLY THESE TWO LINES AND NOTHING ELSE:\n"
-                    "#### yes\n"
-                    "CONF: 0.73\n\n"
+                    "#### <yes/no>\n"
+                    "CONF: <p>\n\n"
                     "Rules:\n"
                     "- Output must be EXACTLY two lines.\n"
                     "- First line must be: #### yes OR #### no (lowercase).\n"
                     "- Second line must be: CONF: <number between 0 and 1>.\n"
-                    "- Do not include explanations, extra text, angle brackets <> or LaTeX.\n"
+                    "- Do not include explanations or any extra text.\n"
                 )
             else:
                 messages[-1]["content"] += (
                     "\n\nSTRICT OUTPUT FORMAT. PRINT ONLY THESE TWO LINES AND NOTHING ELSE:\n"
-                    "#### 123\n"
-                    "CONF: 0.73\n\n"
+                    "#### <final_answer>\n"
+                    "CONF: <p>\n\n"
                     "Rules:\n"
                     "- Output must be EXACTLY two lines.\n"
-                    "- First line must be: #### <final_answer> where <final_answer> is a single number.\n"
-                    "- Do not add words, units, LaTeX, or punctuation.\n"
-                    "- Second line must be: CONF: <number between 0 and 1>.\n"
+                    "- <final_answer> must be a single number (no words, no LaTeX, no units).\n"
+                    "- <p> must be a decimal between 0 and 1.\n"
                     "- Do not include explanations or any extra text.\n"
                 )
+
 
 
         else:
