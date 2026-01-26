@@ -17,6 +17,7 @@ from src.data.judging import is_correct
 from src.calibration.conf_calibrator import ConfidenceCalibrator
 import re
 from transformers import StoppingCriteria, StoppingCriteriaList
+
 FORMAT_SUFFIX = (
   "\n\nSTRICT OUTPUT FORMAT.\n"
   "End with EXACTLY these two lines:\n"
@@ -28,12 +29,11 @@ FORMAT_SUFFIX = (
   "- Do not write anything after the CONF line.\n"
 )
 
-prompt = prompt + FORMAT_SUFFIX
 
 class StopAfterAnswerAndConf(StoppingCriteria):
     """
     Stop when the generated text contains:
-      #### (yes|no)  AND  CONF: <float>
+      #### <answer>  AND  CONF: <float>
     """
     def __init__(self, tokenizer):
         super().__init__()
@@ -98,6 +98,7 @@ def load_model(base_model: str, adapter_dir: Optional[str]) -> Tuple[Any, Any]:
         model = PeftModel.from_pretrained(model, adapter_dir)
     model.eval()
     return tok, model
+
 
 def load_boolq(split: str, max_examples: int = None):
     from datasets import load_dataset
@@ -176,9 +177,8 @@ def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool 
 
     return text, stats
 
-def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
-    import torch
 
+def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
     inputs = tok(prompt, return_tensors="pt")
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
@@ -192,6 +192,7 @@ def generate_with_stats(model, tok, prompt: str, max_new_tokens: int):
             pad_token_id=tok.eos_token_id,
             eos_token_id=tok.eos_token_id,
             stopping_criteria=stopping,
+            return_dict_in_generate=True,  # FIX: ensure .sequences exists
         )
 
     seq = out.sequences[0] if hasattr(out, "sequences") else out[0]
@@ -224,11 +225,10 @@ def main():
 
     args = ap.parse_args()
 
-
     save_jsonl_fh = None
     if getattr(args, "save_jsonl", None):
         from pathlib import Path
-        import json, atexit
+        import atexit
         Path(args.save_jsonl).parent.mkdir(parents=True, exist_ok=True)
         save_jsonl_fh = open(args.save_jsonl, "w", encoding="utf-8", buffering=1)
         atexit.register(lambda: save_jsonl_fh and save_jsonl_fh.close())
@@ -276,11 +276,8 @@ def main():
                     "- Do not include explanations, extra text, angle brackets <> or LaTeX.\n"
                 )
             else:
-                messages[-1]["content"] += (
-                    "\n\nIMPORTANT: End your response with:\n"
-                    "#### <final_answer>\n"
-                    "CONF: <0-1>\n"
-                )
+                # FIX: use strict suffix to force #### + CONF presence
+                messages[-1]["content"] += FORMAT_SUFFIX
 
             prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             out_text, stats = generate_with_stats(model, tok, prompt, max_new_tokens=mnt)
@@ -311,12 +308,9 @@ def main():
                 }
                 save_jsonl_fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-            ok = is_correct(ans, ex.gold)
-
             correct_counts[t] += int(ok)
 
             conf_val = 0.5 if conf is None else float(conf)
-            # (optional clamp for safety)
             conf_val = max(0.0, min(1.0, conf_val))
 
             confs_by_t[t].append(conf_val)
@@ -361,7 +355,6 @@ def main():
     if calibrator is not None:
         print("\n=== Calibration (calibrated) ===")
         for t in budgets:
-            # confs_cal_by_t[t] exists only if we appended it; guard if needed
             if len(confs_cal_by_t[t]) == 0:
                 continue
             bs = brier_score(confs_cal_by_t[t], correct_by_t[t])
