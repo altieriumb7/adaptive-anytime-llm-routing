@@ -150,7 +150,7 @@ def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool 
             stopping_criteria=stopping,
             return_dict_in_generate=True,
         )
-    seq = out.sequences[0]
+        seq = out.sequences[0]
 
     prefix_len = int(inputs["input_ids"].shape[1])
     gen_ids = seq[prefix_len:]
@@ -264,18 +264,32 @@ def main():
 
             messages = make_messages(ex.problem, budget_t=t, task=task)
 
-            if str(task).lower() in {"yesno", "boolq", "strategyqa"}:
-                else:
+            task_lower = str(task).lower()
+
+            if task_lower in {"yesno", "boolq", "strategyqa"}:
+                messages[-1]["content"] += (
+                    "\n\nSTRICT OUTPUT FORMAT. PRINT ONLY THESE TWO LINES AND NOTHING ELSE:\n"
+                    "#### yes\n"
+                    "CONF: 0.73\n\n"
+                    "Rules:\n"
+                    "- Output must be EXACTLY two lines.\n"
+                    "- First line must be: #### yes OR #### no (lowercase).\n"
+                    "- Second line must be: CONF: <number between 0 and 1>.\n"
+                    "- Do not include explanations, extra text, angle brackets <> or LaTeX.\n"
+                )
+            else:
                 messages[-1]["content"] += (
                     "\n\nSTRICT OUTPUT FORMAT. PRINT ONLY THESE TWO LINES AND NOTHING ELSE:\n"
                     "#### 123\n"
                     "CONF: 0.73\n\n"
                     "Rules:\n"
                     "- Output must be EXACTLY two lines.\n"
-                    "- First line must be: #### <final_answer> where <final_answer> is a single number (no words, no LaTeX, no units).\n"
+                    "- First line must be: #### <final_answer> where <final_answer> is a single number.\n"
+                    "- Do not add words, units, LaTeX, or punctuation.\n"
                     "- Second line must be: CONF: <number between 0 and 1>.\n"
                     "- Do not include explanations or any extra text.\n"
                 )
+
 
         else:
                 # FIX: use strict suffix to force #### + CONF presence
