@@ -147,11 +147,11 @@ def generate(model, tok, prompt: str, max_new_tokens: int, *, compute_nll: bool 
             do_sample=False,
             pad_token_id=tok.eos_token_id,
             eos_token_id=tok.eos_token_id,
+            stopping_criteria=stopping,
             return_dict_in_generate=True,
-            output_scores=bool(compute_nll),
         )
+    seq = out.sequences[0]
 
-    seq = out.sequences[0] if hasattr(out, "sequences") else out[0]
     prefix_len = int(inputs["input_ids"].shape[1])
     gen_ids = seq[prefix_len:]
     gen_tokens = int(gen_ids.shape[0])
@@ -265,19 +265,21 @@ def main():
             messages = make_messages(ex.problem, budget_t=t, task=task)
 
             if str(task).lower() in {"yesno", "boolq", "strategyqa"}:
+                else:
                 messages[-1]["content"] += (
                     "\n\nSTRICT OUTPUT FORMAT. PRINT ONLY THESE TWO LINES AND NOTHING ELSE:\n"
-                    "#### yes\n"
+                    "#### 123\n"
                     "CONF: 0.73\n\n"
                     "Rules:\n"
                     "- Output must be EXACTLY two lines.\n"
-                    "- First line must be: #### yes OR #### no (lowercase).\n"
+                    "- First line must be: #### <final_answer> where <final_answer> is a single number (no words, no LaTeX, no units).\n"
                     "- Second line must be: CONF: <number between 0 and 1>.\n"
-                    "- Do not include explanations, extra text, angle brackets <> or LaTeX.\n"
+                    "- Do not include explanations or any extra text.\n"
                 )
-            else:
+
+        else:
                 # FIX: use strict suffix to force #### + CONF presence
-                messages[-1]["content"] += FORMAT_SUFFIX
+            messages[-1]["content"] += FORMAT_SUFFIX
 
             prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             out_text, stats = generate_with_stats(model, tok, prompt, max_new_tokens=mnt)
