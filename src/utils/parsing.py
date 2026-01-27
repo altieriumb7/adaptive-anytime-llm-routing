@@ -29,14 +29,26 @@ def _canon_yesno(s: str) -> str:
         return "no"
     return s.strip()
 
-def parse_answer_and_conf(raw_text: str):
-    # Strip out LaTeX and unnecessary symbols
-    raw_text = re.sub(r'\\[a-zA-Z]+{[^}]+}', '', raw_text)  # Remove LaTeX
-    raw_text = re.sub(r'[^\w\s\.]', '', raw_text)  # Remove punctuation
+import re
 
-    match = re.search(r"####\s*([^\n\r]+)\s*[\n\r]+\s*CONF\s*:\s*([01](?:\.\d+)?)", raw_text, re.IGNORECASE)
-    if match:
-        answer = match.group(1).strip()
-        confidence = match.group(2).strip()
-        return answer, confidence
-    return None, None
+def parse_answer_and_conf(text: str):
+    text = text or ""
+    ans = ""
+    conf = None
+
+    # Take the LAST match for both "####" and "CONF:"
+    # Find the last occurrence of the final answer
+    matches = list(re.finditer(r"####\s*([^\n\r]+)", text))
+    if matches:
+        ans = matches[-1].group(1).strip()  # Take the last match for the final answer
+
+    # Find the last occurrence of CONF:
+    cmatches = list(re.finditer(r"CONF\s*:\s*([01](?:\.\d+)?)", text, re.IGNORECASE))
+    if cmatches:
+        try:
+            conf = float(cmatches[-1].group(1))  # Extract confidence
+            conf = max(0.0, min(1.0, conf))  # Ensure confidence is between 0 and 1
+        except Exception:
+            conf = None
+
+    return ans, conf
