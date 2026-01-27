@@ -29,29 +29,14 @@ def _canon_yesno(s: str) -> str:
         return "no"
     return s.strip()
 
-def parse_answer_and_conf(text: str):
-    text = text or ""
-    ans = ""
-    conf = None
+def parse_answer_and_conf(raw_text: str):
+    # Strip out LaTeX and unnecessary symbols
+    raw_text = re.sub(r'\\[a-zA-Z]+{[^}]+}', '', raw_text)  # Remove LaTeX
+    raw_text = re.sub(r'[^\w\s\.]', '', raw_text)  # Remove punctuation
 
-    # take the LAST #### match (important for multi-line outputs)
-    matches = list(_RE_HASH.finditer(text))
-    if matches:
-        ans = matches[-1].group(1).strip()
-
-    # take the LAST CONF match
-    cmatches = list(_RE_CONF.finditer(text))
-    if cmatches:
-        try:
-            conf = float(cmatches[-1].group(1))
-            conf = max(0.0, min(1.0, conf))
-        except Exception:
-            conf = None
-
-    # robust yes/no cleanup if needed
-    if ans == "" or "<final_answer>" in ans.lower() or "final_answer" in ans.lower():
-        ans = _canon_yesno(text[-800:])  # look at tail
-    else:
-        ans = _canon_yesno(ans)
-
-    return ans, conf
+    match = re.search(r"####\s*([^\n\r]+)\s*[\n\r]+\s*CONF\s*:\s*([01](?:\.\d+)?)", raw_text, re.IGNORECASE)
+    if match:
+        answer = match.group(1).strip()
+        confidence = match.group(2).strip()
+        return answer, confidence
+    return None, None

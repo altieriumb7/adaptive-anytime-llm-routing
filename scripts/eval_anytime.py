@@ -35,6 +35,7 @@ class StopAfterAnswerAndConf(StoppingCriteria):
     Stop when the GENERATED text (excluding the prompt) contains:
       #### <anything>  AND  CONF: <float>
     """
+
     def __init__(self, tokenizer, prompt_len: int, min_gen_tokens: int = 4):
         super().__init__()
         self.tok = tokenizer
@@ -52,8 +53,11 @@ class StopAfterAnswerAndConf(StoppingCriteria):
             return False
         tail_ids = gen_ids[-256:]
         tail = self.tok.decode(tail_ids, skip_special_tokens=False)
-        return self.pattern.search(tail) is not None
 
+        # Log the decoded text (this will help debug if we're stopping too soon)
+        print(f"Generated Text: {tail}")
+
+        return self.pattern.search(tail) is not None
 
 
 def brier_score(confs: List[float], corrects: List[int]) -> float:
@@ -274,15 +278,14 @@ def main():
 
             task_lower = str(task).lower()
 
-            # In the block where you're building messages, add:
             if str(task).lower() in {"yesno", "boolq", "strategyqa"}:
                 messages[-1]["content"] += (
                     "\n\nSTRICT OUTPUT FORMAT. PRINT ONLY THESE TWO LINES AND NOTHING ELSE:\n"
-                    "#### yes\n"
-                    "CONF: 0.73\n\n"
+                    "#### <final_answer>\n"
+                    "CONF: <p>\n\n"
                     "Rules:\n"
                     "- Output must be EXACTLY two lines.\n"
-                    "- First line must be: #### yes OR #### no (lowercase).\n"
+                    "- First line must be: #### <final_answer> where <final_answer> is a single number (no words, no LaTeX, no units).\n"
                     "- Second line must be: CONF: <number between 0 and 1>.\n"
                     "- Do not include explanations, extra text, angle brackets <> or LaTeX.\n"
                 )
@@ -298,6 +301,7 @@ def main():
                     "- Second line must be: CONF: <number between 0 and 1>.\n"
                     "- Do not include explanations or any extra text.\n"
                 )
+
 
 
 
