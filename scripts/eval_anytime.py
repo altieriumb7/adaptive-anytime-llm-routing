@@ -6,6 +6,76 @@ from typing import Dict, Any, List, Tuple, Optional
 
 import numpy as np
 from tqdm import tqdm
+def _fallback_last_number(text: str) -> str:
+    """
+    If the model doesn't emit '#### <ans>', try to extract the last numeric value
+    (works for SVAMP-style outputs with \\boxed{...}).
+    """
+    text = text or ""
+    tail = text[-1200:]
+    # Prefer boxed
+    m = re.findall(r"\\boxed\{(-?\d+(?:\.\d+)?)\}", tail)
+    if m:
+        return m[-1]
+    # Otherwise last standalone number
+    m = re.findall(r"(-?\d+(?:\.\d+)?)", tail)
+    return m[-1] if m else ""
+
+def _clean_gold(gold: str) -> str:
+    gold = "" if gold is None else str(gold)
+    gold = gold.strip()
+    gold = re.sub(r"^####\s*", "", gold)
+    gold = gold.strip()
+    return gold
+
+def brier_score(confs: List[float], corrects: List[int]) -> float:
+    # safe against empty/misaligned lists
+    if confs is None or corrects is None:
+        return float("nan")
+    n = min(len(confs), len(corrects))
+    if n == 0:
+        return float("nan")
+    c = np.array(confs[:n], dtype=np.float64)
+    y = np.array(corrects[:n], dtype=np.float64)
+    return float(np.mean((c - y) ** 2))
+
+
+def ece_score(confs: List[float], corrects: List[int], n_bins: int = 10) -> float:
+    # safe against empty/misaligned lists
+    if confs is None or corrects is None:
+        return 0.0
+    n = min(len(confs), len(corrects))
+    if n == 0:
+        return 0.0
+    c = np.array(confs[:n], dtype=np.float64)
+    y = np.array(corrects[:n], dtype=np.float64)
+
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+    ece = 0.0
+    for i in range(n_bins):
+        lo, hi = bins[i], bins[i + 1]
+        mask = (c >= lo) & (c < hi) if i < n_bins - 1 else (c >= lo) & (c <= hi)
+        if mask.sum() == 0:
+            continue
+        acc = y[mask].mean()
+        conf = c[mask].mean()
+        ece += (mask.mean()) * abs(acc - conf)
+    return float(ece)
+
+
+
+def _safe_pair(confs, corrects):
+    """Return (c,y) as numpy arrays aligned; empty => (None,None)."""
+    if confs is None or corrects is None:
+        return None, None
+    n = min(len(confs), len(corrects))
+    if n <= 0:
+        return None, None
+    import numpy as np
+    c = np.array(confs[:n], dtype=np.float64)
+    y = np.array(corrects[:n], dtype=np.float64)
+    return c, y
+
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
@@ -55,18 +125,16 @@ class StopAfterAnswerAndConf(StoppingCriteria):
         tail = self.tok.decode(tail_ids, skip_special_tokens=False)
 
         # Log the decoded text (this will help debug if we're stopping too soon)
-        print(f"Generated Text: {tail}")
-
+# print(f"Generated Text: {tail}")  # muted
         return self.pattern.search(tail) is not None
 
 
 def brier_score(confs: List[float], corrects: List[int]) -> float:
-    c = np.array(confs, dtype=np.float64)
-    y = np.array(corrects, dtype=np.float64)
+    c, y = _safe_pair(confs, corrects)
+    if c is None:
+        return float('nan')
     return float(np.mean((c - y) ** 2))
 
-
-def ece_score(confs: List[float], corrects: List[int], n_bins: int = 10) -> float:
     c = np.array(confs, dtype=np.float64)
     y = np.array(corrects, dtype=np.float64)
     bins = np.linspace(0.0, 1.0, n_bins + 1)
@@ -314,7 +382,10 @@ def main():
             out_text, stats = generate_with_stats(model, tok, prompt, max_new_tokens=mnt)
             ans, conf = parse_answer_and_conf(out_text)
 
-            ok = is_correct(ans, ex.gold)
+            gold_clean = _clean_gold(ex.gold)
+            if (ans is None) or (str(ans).strip() == ""):
+                ans = _fallback_last_number(out_text)
+            ok = is_correct(ans, gold_clean)
 
             if save_jsonl_fh is not None:
                 row = {

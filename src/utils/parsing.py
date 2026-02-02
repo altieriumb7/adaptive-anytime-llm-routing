@@ -36,19 +36,51 @@ def parse_answer_and_conf(text: str):
     ans = ""
     conf = None
 
-    # Take the LAST match for both "####" and "CONF:"
-    # Find the last occurrence of the final answer
-    matches = list(re.finditer(r"####\s*([^\n\r]+)", text))
+    # take the LAST #### match (important for multi-line outputs)
+    matches = list(_RE_HASH.finditer(text))
     if matches:
-        ans = matches[-1].group(1).strip()  # Take the last match for the final answer
+        ans = matches[-1].group(1).strip()
 
-    # Find the last occurrence of CONF:
-    cmatches = list(re.finditer(r"CONF\s*:\s*([01](?:\.\d+)?)", text, re.IGNORECASE))
+    # take the LAST CONF match
+    cmatches = list(_RE_CONF.finditer(text))
     if cmatches:
         try:
-            conf = float(cmatches[-1].group(1))  # Extract confidence
-            conf = max(0.0, min(1.0, conf))  # Ensure confidence is between 0 and 1
+            conf = float(cmatches[-1].group(1))
+            conf = max(0.0, min(1.0, conf))
         except Exception:
             conf = None
+
+    # --- NEW: boxed fallback (SVAMP often uses \\boxed{...}) ---
+    if ans == "" or "<final_answer>" in ans.lower() or "final_answer" in ans.lower():
+        try:
+            _RE_BOXED = re.compile(r"\\\\boxed\\{([^}]*)\\}")
+            bmatches = list(_RE_BOXED.finditer(text))
+            if bmatches:
+                ans = bmatches[-1].group(1).strip()
+        except Exception:
+            pass
+
+    # --- NEW: last number in tail fallback (SVAMP/GSM8K messy formatting) ---
+    if ans == "" or "<final_answer>" in ans.lower() or "final_answer" in ans.lower():
+        tail = text[-1000:]
+        nums = re.findall(r"(-?\\d+(?:\\.\\d+)?)", tail)
+        if nums:
+            ans = nums[-1].strip()
+
+    # robust yes/no cleanup if needed
+    if ans == "" or "<final_answer>" in ans.lower() or "final_answer" in ans.lower():
+        ans = _canon_yesno(text[-800:])  # look at tail
+    else:
+        ans = _canon_yesno(ans)
+
+    # --- NEW: canonicalize numeric strings like "17.0" -> "17" ---
+    try:
+        af = float(ans)
+        if af.is_integer():
+            ans = str(int(af))
+        else:
+            ans = str(af)
+    except Exception:
+        pass
 
     return ans, conf
