@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a LaTeX router results table from per-seed CSV.
+r"""Generate a LaTeX router results table from per-seed CSV.
 
 Input:
   artifacts/router_optionB/paper_table_test_full_per_seed.csv
@@ -41,6 +41,7 @@ def main() -> None:
     ap.add_argument('--out_tex', required=True)
     ap.add_argument('--caption', default='Test performance across compute tiers (accuracy; mean tokens and mean steps in parentheses). Values are mean$\\pm$std over three split seeds.')
     ap.add_argument('--label', default='tab:main_results_allbudgets')
+    ap.add_argument('--oracle_everywhere', action='store_true', help='Repeat Oracle across all budget columns (default: show only in the first budget column).')
     args = ap.parse_args()
 
     rows: List[Dict[str, str]] = []
@@ -88,6 +89,10 @@ def main() -> None:
     for pol in policies:
         parts = [pretty.get(pol, pol)]
         for b in budgets:
+            # Oracle does not depend on budget; show once for readability unless requested.
+            if (not args.oracle_everywhere) and (pol == 'oracle') and (b != budgets[0]):
+                parts.append('--')
+                continue
             mu_a, sd_a = mean_std(cell[(pol, b)]['acc'])
             mu_t, sd_t = mean_std(cell[(pol, b)]['tok'])
             mu_s, sd_s = mean_std(cell[(pol, b)]['steps'])

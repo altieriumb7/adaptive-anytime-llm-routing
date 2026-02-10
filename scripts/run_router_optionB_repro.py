@@ -8,13 +8,14 @@ expected compute (mean tokens). When exact matching is not attainable with a sin
 we use a 2-point mixture (low/hi) and report expected metrics (no Monte Carlo noise).
 
 Outputs:
-  - artifacts/router_optionB_seed{seed}/summary.csv (dev+test rows)
-  - artifacts/router_optionB/paper_table_test_full_per_seed.csv (test rows, long form)
-  - artifacts/router_optionB/paper_table_test_acc_tokens.csv (compact)
+  - <out_dir>/seed{seed}/summary.csv (dev+test rows)
+  - <out_dir>/paper_table_test_full_per_seed.csv (test rows, long form)
+  - <out_dir>/paper_table_test_acc_tokens.csv (compact)
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import os
@@ -26,8 +27,8 @@ import scripts.eval_depth_router as edr
 from src.calibration.conf_calibrator import ConfidenceCalibrator
 
 
-OUTROOT = "artifacts/router_optionB"
-SEEDS = [int(s) for s in os.environ.get("ROUTER_SEEDS", "0 1 2").replace(",", " ").split()]
+DEFAULT_OUTDIR = "artifacts/router_optionB"
+DEFAULT_SEEDS = [int(s) for s in os.environ.get("ROUTER_SEEDS", "0 1 2").replace(",", " ").split()]
 TARGETS = [1, 2, 3, 4]  # B1..B4
 T_MAX = 4              # anytime trajectory length
 
@@ -241,158 +242,224 @@ def save_summary(path: str, rows: List[Dict[str, Any]]) -> None:
             w.writerow(r)
 
 
-all_seed_rows: List[Dict[str, Any]] = []
-
-for seed in SEEDS:
-    dev_path = f"data/router_splits_seeds/seed{seed}/dev.jsonl"
-    test_path = f"data/router_splits_seeds/seed{seed}/test.jsonl"
-    out_seed = f"{OUTROOT}_seed{seed}"
-    Path(out_seed).mkdir(parents=True, exist_ok=True)
-
-    dev_ex = edr.read_jsonl_grouped(dev_path)
-    test_ex = edr.read_jsonl_grouped(test_path)
-
-    calib_path = f"artifacts/calibration/platt_seed{seed}.json"
-    calibrator = ConfidenceCalibrator.from_json(calib_path) if Path(calib_path).exists() else None
-
-    rows: List[Dict[str, Any]] = []
-
-    dev_or = oracle_metrics(dev_ex, seed=seed, calibrator=calibrator)
-    test_or = oracle_metrics(test_ex, seed=seed, calibrator=calibrator)
-
-    for B in TARGETS:
-        budget_tag = f"B{B}"
-
-        dev_fixed = edr.evaluate(dev_ex, policy="fixed", k=B, seed=seed, calibrator=calibrator)
-        test_fixed = edr.evaluate(test_ex, policy="fixed", k=B, seed=seed, calibrator=calibrator)
-        target_tokens = float(dev_fixed["mean_tokens"])
-
-        # ---- Confidence (mixture)
-        conf_mix = choose_conf_mix(dev_ex, target_tokens, calibrator, seed)
-        if conf_mix.mode == "single":
-            th = float(conf_mix.th)
-            dev_conf = edr.evaluate(dev_ex, policy="conf", threshold=th, seed=seed, calibrator=calibrator)
-            test_conf = edr.evaluate(test_ex, policy="conf", threshold=th, seed=seed, calibrator=calibrator)
-            conf_hist = pad_hist(dev_conf.get("stop_histogram", []), T_MAX)
-        else:
-            assert conf_mix.low is not None and conf_mix.high is not None and conf_mix.p_low is not None
-            low_w = conf_mix.low
-            high_w = conf_mix.high
-            dev_low = low_w["res"]
-            dev_high = high_w["res"]
-            th_low = float(low_w["th"])
-            th_high = float(high_w["th"])
-
-            test_low = edr.evaluate(test_ex, policy="conf", threshold=th_low, seed=seed, calibrator=calibrator)
-            test_high = edr.evaluate(test_ex, policy="conf", threshold=th_high, seed=seed, calibrator=calibrator)
-
-            dev_conf = mix_metrics(float(conf_mix.p_low), dev_low, dev_high)
-            test_conf = mix_metrics(float(conf_mix.p_low), test_low, test_high)
-            conf_hist = pad_hist(dev_conf.get("stop_histogram", []), T_MAX)
-
-        # ---- Random matched (deterministic expectation)
-        hist_path = f"{out_seed}/conf_hist_{budget_tag}.json"
-        with open(hist_path, "w", encoding="utf-8") as f:
-            json.dump(conf_hist, f)
-        dev_rand = random_expected_metrics(dev_ex, conf_hist)
-        test_rand = random_expected_metrics(test_ex, conf_hist)
-
-        # ---- Stability (mixture)  <-- FIXED: use wrappers with (m, min_step)
-        stab_mix = choose_stability_mix(dev_ex, target_tokens, calibrator, seed, tier_k=B)
-        if stab_mix.mode == "single":
-            m = int(stab_mix.m)
-            min_step = int(stab_mix.min_step)
-            dev_stab = edr.evaluate(dev_ex, policy="stability", m=m, min_step=min_step, seed=seed, calibrator=calibrator)
-            test_stab = edr.evaluate(test_ex, policy="stability", m=m, min_step=min_step, seed=seed, calibrator=calibrator)
-        else:
-            assert stab_mix.low is not None and stab_mix.high is not None and stab_mix.p_low is not None
-            low_w = stab_mix.low
-            high_w = stab_mix.high
-
-            dev_low = low_w["res"]
-            dev_high = high_w["res"]
-
-            m_low, ms_low = int(low_w["m"]), int(low_w["min_step"])
-            m_high, ms_high = int(high_w["m"]), int(high_w["min_step"])
-
-            test_low = edr.evaluate(test_ex, policy="stability", m=m_low, min_step=ms_low, seed=seed, calibrator=calibrator)
-            test_high = edr.evaluate(test_ex, policy="stability", m=m_high, min_step=ms_high, seed=seed, calibrator=calibrator)
-
-            dev_stab = mix_metrics(float(stab_mix.p_low), dev_low, dev_high)
-            test_stab = mix_metrics(float(stab_mix.p_low), test_low, test_high)
-
-        def pack(split: str, policy: str, res: Dict[str, Any]) -> Dict[str, Any]:
-            return {
-                "seed": seed,
-                "split": split,
-                "budget_tag": budget_tag,
-                "policy": policy,
-                "acc": float(res["acc"]),
-                "mean_tokens": float(res["mean_tokens"]),
-                "mean_steps": float(res["mean_steps"]),
-            }
-
-        rows.extend(
-            [
-                pack("dev", "fixed", dev_fixed),
-                pack("test", "fixed", test_fixed),
-                pack("dev", "conf", dev_conf),
-                pack("test", "conf", test_conf),
-                pack("dev", "random", dev_rand),
-                pack("test", "random", test_rand),
-                pack("dev", "stability", dev_stab),
-                pack("test", "stability", test_stab),
-                pack("dev", "oracle", dev_or),
-                pack("test", "oracle", test_or),
-            ]
-        )
-
-    save_summary(f"{out_seed}/summary.csv", rows)
-    print(f"Wrote {out_seed}/summary.csv")
-    all_seed_rows.extend([r for r in rows if r["split"] == "test"])
+def _parse_seeds(s: str) -> List[int]:
+    return [int(x) for x in str(s).replace(",", " ").split() if str(x).strip()]
 
 
-# Save per-seed long-form test table
-Path(OUTROOT).mkdir(parents=True, exist_ok=True)
-long_path = f"{OUTROOT}/paper_table_test_full_per_seed.csv"
-with open(long_path, "w", newline="", encoding="utf-8") as f:
-    w = csv.DictWriter(f, fieldnames=list(all_seed_rows[0].keys()))
-    w.writeheader()
-    for r in all_seed_rows:
-        w.writerow(r)
-print(f"Wrote {long_path}")
-
-
-# Save compact test table with mean over seeds (acc/tokens)
-from collections import defaultdict
-import statistics
-
-group = defaultdict(list)
-for r in all_seed_rows:
-    group[(r["policy"], r["budget_tag"])].append(r)
-
-compact_rows = []
-for (policy, budget_tag), items in sorted(group.items(), key=lambda x: (x[0][0], int(x[0][1][1:]))):
-    accs = [float(it["acc"]) for it in items]
-    toks = [float(it["mean_tokens"]) for it in items]
-    stps = [float(it["mean_steps"]) for it in items]
-    compact_rows.append(
-        {
-            "policy": policy,
-            "budget_tag": budget_tag,
-            "acc_mean": statistics.mean(accs),
-            "acc_std": statistics.pstdev(accs) if len(accs) > 1 else 0.0,
-            "tokens_mean": statistics.mean(toks),
-            "tokens_std": statistics.pstdev(toks) if len(toks) > 1 else 0.0,
-            "steps_mean": statistics.mean(stps),
-            "steps_std": statistics.pstdev(stps) if len(stps) > 1 else 0.0,
-        }
+def _default_seed_split_paths(seed: int) -> Tuple[str, str]:
+    return (
+        f"data/router_splits_seeds/seed{seed}/dev.jsonl",
+        f"data/router_splits_seeds/seed{seed}/test.jsonl",
     )
 
-compact_path = f"{OUTROOT}/paper_table_test_acc_tokens.csv"
-with open(compact_path, "w", newline="", encoding="utf-8") as f:
-    w = csv.DictWriter(f, fieldnames=list(compact_rows[0].keys()))
-    w.writeheader()
-    for r in compact_rows:
-        w.writerow(r)
-print(f"Wrote {compact_path}")
+
+def _dataset_paths(dataset: str) -> Tuple[str, str]:
+    return (
+        f"data/router_{dataset}/dev.jsonl",
+        f"data/router_{dataset}/test.jsonl",
+    )
+
+
+def run_router(
+    *,
+    out_dir: str,
+    seeds: List[int],
+    dataset: Optional[str],
+    dev_jsonl: Optional[str],
+    test_jsonl: Optional[str],
+    calibrator_json: Optional[str],
+) -> None:
+    """Run Option-B router evaluation and emit CSVs + LaTeX-ready inputs."""
+    out_dir = str(out_dir)
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+    all_seed_rows: List[Dict[str, Any]] = []
+
+    for seed in seeds:
+        # Resolve input paths
+        if dev_jsonl and test_jsonl:
+            dev_path, test_path = dev_jsonl, test_jsonl
+        elif dataset:
+            dev_path, test_path = _dataset_paths(dataset)
+        else:
+            dev_path, test_path = _default_seed_split_paths(seed)
+
+        out_seed = str(Path(out_dir) / f"seed{seed}")
+        Path(out_seed).mkdir(parents=True, exist_ok=True)
+
+        dev_ex = edr.read_jsonl_grouped(dev_path)
+        test_ex = edr.read_jsonl_grouped(test_path)
+
+        # Calibrator: explicit path > per-seed default > none
+        if calibrator_json:
+            calibrator = ConfidenceCalibrator.from_json(calibrator_json)
+        else:
+            calib_path = f"artifacts/calibration/platt_seed{seed}.json"
+            calibrator = ConfidenceCalibrator.from_json(calib_path) if Path(calib_path).exists() else None
+
+        rows: List[Dict[str, Any]] = []
+
+        dev_or = oracle_metrics(dev_ex, seed=seed, calibrator=calibrator)
+        test_or = oracle_metrics(test_ex, seed=seed, calibrator=calibrator)
+
+        for B in TARGETS:
+            budget_tag = f"B{B}"
+
+            dev_fixed = edr.evaluate(dev_ex, policy="fixed", k=B, seed=seed, calibrator=calibrator)
+            test_fixed = edr.evaluate(test_ex, policy="fixed", k=B, seed=seed, calibrator=calibrator)
+            target_tokens = float(dev_fixed["mean_tokens"])
+
+            # ---- Confidence (mixture)
+            conf_mix = choose_conf_mix(dev_ex, target_tokens, calibrator, seed)
+            if conf_mix.mode == "single":
+                th = float(conf_mix.th)
+                dev_conf = edr.evaluate(dev_ex, policy="conf", threshold=th, seed=seed, calibrator=calibrator)
+                test_conf = edr.evaluate(test_ex, policy="conf", threshold=th, seed=seed, calibrator=calibrator)
+                conf_hist = pad_hist(dev_conf.get("stop_histogram", []), T_MAX)
+            else:
+                assert conf_mix.low is not None and conf_mix.high is not None and conf_mix.p_low is not None
+                low_w = conf_mix.low
+                high_w = conf_mix.high
+                dev_low = low_w["res"]
+                dev_high = high_w["res"]
+                th_low = float(low_w["th"])
+                th_high = float(high_w["th"])
+
+                test_low = edr.evaluate(test_ex, policy="conf", threshold=th_low, seed=seed, calibrator=calibrator)
+                test_high = edr.evaluate(test_ex, policy="conf", threshold=th_high, seed=seed, calibrator=calibrator)
+
+                dev_conf = mix_metrics(float(conf_mix.p_low), dev_low, dev_high)
+                test_conf = mix_metrics(float(conf_mix.p_low), test_low, test_high)
+                conf_hist = pad_hist(dev_conf.get("stop_histogram", []), T_MAX)
+
+            # ---- Random matched (deterministic expectation)
+            hist_path = str(Path(out_seed) / f"conf_hist_{budget_tag}.json")
+            with open(hist_path, "w", encoding="utf-8") as f:
+                json.dump(conf_hist, f)
+            dev_rand = random_expected_metrics(dev_ex, conf_hist)
+            test_rand = random_expected_metrics(test_ex, conf_hist)
+
+            # ---- Stability (mixture)
+            stab_mix = choose_stability_mix(dev_ex, target_tokens, calibrator, seed, tier_k=B)
+            if stab_mix.mode == "single":
+                m = int(stab_mix.m)
+                min_step = int(stab_mix.min_step)
+                dev_stab = edr.evaluate(dev_ex, policy="stability", m=m, min_step=min_step, seed=seed, calibrator=calibrator)
+                test_stab = edr.evaluate(test_ex, policy="stability", m=m, min_step=min_step, seed=seed, calibrator=calibrator)
+            else:
+                assert stab_mix.low is not None and stab_mix.high is not None and stab_mix.p_low is not None
+                low_w = stab_mix.low
+                high_w = stab_mix.high
+
+                dev_low = low_w["res"]
+                dev_high = high_w["res"]
+
+                m_low, ms_low = int(low_w["m"]), int(low_w["min_step"])
+                m_high, ms_high = int(high_w["m"]), int(high_w["min_step"])
+
+                test_low = edr.evaluate(test_ex, policy="stability", m=m_low, min_step=ms_low, seed=seed, calibrator=calibrator)
+                test_high = edr.evaluate(test_ex, policy="stability", m=m_high, min_step=ms_high, seed=seed, calibrator=calibrator)
+
+                dev_stab = mix_metrics(float(stab_mix.p_low), dev_low, dev_high)
+                test_stab = mix_metrics(float(stab_mix.p_low), test_low, test_high)
+
+            def pack(split: str, policy: str, res: Dict[str, Any]) -> Dict[str, Any]:
+                return {
+                    "seed": seed,
+                    "split": split,
+                    "budget_tag": budget_tag,
+                    "policy": policy,
+                    "acc": float(res["acc"]),
+                    "mean_tokens": float(res["mean_tokens"]),
+                    "mean_steps": float(res["mean_steps"]),
+                }
+
+            rows.extend(
+                [
+                    pack("dev", "fixed", dev_fixed),
+                    pack("test", "fixed", test_fixed),
+                    pack("dev", "conf", dev_conf),
+                    pack("test", "conf", test_conf),
+                    pack("dev", "random", dev_rand),
+                    pack("test", "random", test_rand),
+                    pack("dev", "stability", dev_stab),
+                    pack("test", "stability", test_stab),
+                    pack("dev", "oracle", dev_or),
+                    pack("test", "oracle", test_or),
+                ]
+            )
+
+        save_summary(str(Path(out_seed) / "summary.csv"), rows)
+        print(f"Wrote {out_seed}/summary.csv")
+        all_seed_rows.extend([r for r in rows if r["split"] == "test"])
+
+    if not all_seed_rows:
+        raise SystemExit("No test rows produced. Check your input JSONLs.")
+
+    # Save per-seed long-form test table
+    long_path = str(Path(out_dir) / "paper_table_test_full_per_seed.csv")
+    with open(long_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(all_seed_rows[0].keys()))
+        w.writeheader()
+        for r in all_seed_rows:
+            w.writerow(r)
+    print(f"Wrote {long_path}")
+
+    # Save compact test table with mean over seeds (acc/tokens)
+    from collections import defaultdict
+    import statistics
+
+    group = defaultdict(list)
+    for r in all_seed_rows:
+        group[(r["policy"], r["budget_tag"])].append(r)
+
+    compact_rows = []
+    for (policy, budget_tag), items in sorted(group.items(), key=lambda x: (x[0][0], int(x[0][1][1:]))):
+        accs = [float(it["acc"]) for it in items]
+        toks = [float(it["mean_tokens"]) for it in items]
+        stps = [float(it["mean_steps"]) for it in items]
+        compact_rows.append(
+            {
+                "policy": policy,
+                "budget_tag": budget_tag,
+                "acc_mean": statistics.mean(accs),
+                "acc_std": statistics.pstdev(accs) if len(accs) > 1 else 0.0,
+                "tokens_mean": statistics.mean(toks),
+                "tokens_std": statistics.pstdev(toks) if len(toks) > 1 else 0.0,
+                "steps_mean": statistics.mean(stps),
+                "steps_std": statistics.pstdev(stps) if len(stps) > 1 else 0.0,
+            }
+        )
+
+    compact_path = str(Path(out_dir) / "paper_table_test_acc_tokens.csv")
+    with open(compact_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(compact_rows[0].keys()))
+        w.writeheader()
+        for r in compact_rows:
+            w.writerow(r)
+    print(f"Wrote {compact_path}")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dataset", default=None, help="Dataset name (e.g., gsm8k, boolq, svamp). Used to infer data/router_<dataset>/{dev,test}.jsonl")
+    ap.add_argument("--dev_jsonl", default=None, help="Path to dev jsonl (overrides --dataset inference)")
+    ap.add_argument("--test_jsonl", default=None, help="Path to test jsonl (overrides --dataset inference)")
+    ap.add_argument("--calibrator", default=None, help="Path to a calibrator json. If omitted, uses artifacts/calibration/platt_seed{seed}.json when available.")
+    ap.add_argument("--out_dir", default=os.environ.get("ROUTER_OUTDIR", DEFAULT_OUTDIR))
+    ap.add_argument("--seeds", default=None, help="Comma/space separated seeds. Overrides ROUTER_SEEDS env.")
+    args = ap.parse_args()
+
+    seeds = DEFAULT_SEEDS if args.seeds is None else _parse_seeds(args.seeds)
+    run_router(
+        out_dir=args.out_dir,
+        seeds=seeds,
+        dataset=args.dataset,
+        dev_jsonl=args.dev_jsonl,
+        test_jsonl=args.test_jsonl,
+        calibrator_json=args.calibrator,
+    )
+
+
+if __name__ == "__main__":
+    main()
