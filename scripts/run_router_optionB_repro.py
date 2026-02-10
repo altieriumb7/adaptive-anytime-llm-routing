@@ -60,17 +60,24 @@ def pad_hist(hist: List[float], T: int = T_MAX) -> List[float]:
 
 
 def random_expected_metrics(examples, stop_hist):
-    """Deterministic expected metrics under stop_hist (no sampling)."""
+    """Deterministic expected metrics under stop_hist (no sampling). Safe for short trajectories."""
     stop_hist = pad_hist(stop_hist, T_MAX)
     n = len(examples)
     acc = steps = toks = 0.0
     for ex in examples:
         gold, stps = edr.extract_steps(ex)
+        if not stps:
+            continue
         cum = edr.compute_prefix_tokens(stps)
+        max_i = min(T_MAX, len(stps), len(cum))
+        if max_i <= 0:
+            continue
         for i, p in enumerate(stop_hist, start=1):
-            steps += p * i
-            toks += p * cum[i - 1]
-            acc += p * (1.0 if stps[i - 1].ans == gold else 0.0)
+            # If the example has fewer than i steps, clamp to last available step.
+            j = i if i <= max_i else max_i
+            steps += p * j
+            toks += p * cum[j - 1]
+            acc += p * (1.0 if stps[j - 1].ans == gold else 0.0)
     return {"acc": acc / n, "mean_steps": steps / n, "mean_tokens": toks / n, "stop_histogram": stop_hist}
 
 
