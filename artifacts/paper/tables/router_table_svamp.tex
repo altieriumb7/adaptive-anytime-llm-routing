@@ -1,0 +1,20 @@
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{lYYYY}
+\toprule
+Policy (test, mean$\pm$std over seeds) & B1 & B2 & B3 & B4 \\
+\midrule
+Fixed & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) \\
+\addlinespace
+Confidence & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) \\
+Random (matched) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) \\
+Stability (tuned) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) \\
+Oracle & 0.0000$\pm$0.0000 (320$\pm$0, 1.00$\pm$0.00) & -- & -- & -- \\
+\bottomrule
+\end{tabularx}
+\caption{SVAMP test performance across compute tiers (accuracy; mean tokens and mean steps in parentheses). Adaptive policies are tuned on dev to match the fixed tier's mean token compute in expectation; values are mean$\pm$std over three split seeds.}
+\label{tab:router_svamp}
+\end{table*}
