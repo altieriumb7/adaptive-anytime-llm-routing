@@ -19,7 +19,7 @@ It auto-detects three common schemas in this repo:
 Examples
   python scripts/sanity_check_dataset.py --path data/anytime_gsm8k_train_v2.jsonl
   python scripts/sanity_check_dataset.py --path data/sft_gsm8k_anytime_v2.jsonl
-  python scripts/sanity_check_dataset.py --path data/router_splits/dev.jsonl --expected_ts 1,2,4 --check_correct
+  python scripts/sanity_check_dataset.py --path data/router_splits/dev.jsonl --expected_ts 1,2,3,4 --check_correct
 
 Exit code
   - 0 if OK
@@ -459,7 +459,7 @@ def main() -> None:
         "--expected_ts",
         type=str,
         default=None,
-        help="Comma-separated expected budgets (e.g., '1,2,4'). If omitted, only inferred budgets are reported.",
+        help="Comma-separated expected budgets (e.g., '1,2,3,4'). If omitted, only inferred budgets are reported.",
     )
     ap.add_argument(
         "--check_correct",

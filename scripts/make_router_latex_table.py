@@ -41,7 +41,11 @@ def main() -> None:
     ap.add_argument('--out_tex', required=True)
     ap.add_argument('--caption', default='Test performance across compute tiers (accuracy; mean tokens and mean steps in parentheses). Values are mean$\\pm$std over three split seeds.')
     ap.add_argument('--label', default='tab:main_results_allbudgets')
-    ap.add_argument('--oracle_everywhere', action='store_true', help='Repeat Oracle across all budget columns (default: show only in the first budget column).')
+    ap.add_argument('--split_label', default='test', help='Label used in the header row, e.g. test or validation.')
+    ap.add_argument('--oracle_everywhere', action='store_true', help='Repeat Oracle across all budget columns.')
+    ap.add_argument('--oracle-single-reference', dest='oracle_single_reference', action='store_true', help='Render Oracle once as a single offline reference point and show -- for later budgets.')
+    ap.add_argument('--no-oracle-single-reference', dest='oracle_single_reference', action='store_false', help='Disable single-reference oracle rendering.')
+    ap.set_defaults(oracle_single_reference=None)
     args = ap.parse_args()
 
     rows: List[Dict[str, str]] = []
@@ -83,14 +87,16 @@ def main() -> None:
     lines.append('\\renewcommand{\\arraystretch}{1.1}')
     lines.append('\\begin{tabularx}{\\textwidth}{l' + ('Y' * len(budgets)) + '}')
     lines.append('\\toprule')
-    lines.append('Policy (test, mean$\\pm$std over seeds) & ' + ' & '.join(budgets) + ' \\\\')
+    split_label = args.split_label
+    oracle_single_reference = (not args.oracle_everywhere) if args.oracle_single_reference is None else args.oracle_single_reference
+    lines.append(f'Policy ({split_label}, mean$\\pm$std over seeds) & ' + ' & '.join(budgets) + ' \\\\')
     lines.append('\\midrule')
 
     for pol in policies:
         parts = [pretty.get(pol, pol)]
         for b in budgets:
             # Oracle does not depend on budget; show once for readability unless requested.
-            if (not args.oracle_everywhere) and (pol == 'oracle') and (b != budgets[0]):
+            if oracle_single_reference and (pol == 'oracle') and (b != budgets[0]):
                 parts.append('--')
                 continue
             mu_a, sd_a = mean_std(cell[(pol, b)]['acc'])

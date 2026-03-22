@@ -297,8 +297,8 @@ def main():
     ap.add_argument("--dataset", default="gsm8k", choices=["gsm8k","math", "svamp", "boolq","strategyqa"])
     ap.add_argument("--split", default="test", choices=["train", "test"])
     ap.add_argument("--max_examples", type=int, default=500)
-    ap.add_argument("--budgets", default="1,2,4")
-    ap.add_argument("--max_new_tokens", default="96,192,256", help="comma list aligned with budgets")
+    ap.add_argument("--budgets", default="1,2,3,4")
+    ap.add_argument("--max_new_tokens", default="96,160,224,320", help="comma list aligned with budgets")
     ap.add_argument("--save_jsonl", type=str, default=None, help="Write per-example predictions as JSONL (one row per budget).")
     ap.add_argument("--calibrator", type=str, default=None,
                     help="Path to per-budget confidence calibrator JSON")
