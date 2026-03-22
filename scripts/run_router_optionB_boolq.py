@@ -9,8 +9,8 @@ we use a 2-point mixture (low/hi) and report expected metrics (no Monte Carlo no
 
 Outputs:
   - artifacts/router_optionB_seed{seed}/summary.csv (dev+test rows)
-  - artifacts/router_optionB/paper_table_test_full_per_seed.csv (test rows, long form)
-  - artifacts/router_optionB/paper_table_test_acc_tokens.csv (compact)
+  - artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv (validation rows, long form)
+  - artifacts/router_optionB_boolq/paper_table_validation_acc_tokens.csv (compact)
 """
 
 from __future__ import annotations
@@ -351,9 +351,9 @@ for seed in SEEDS:
     all_seed_rows.extend([r for r in rows if r["split"] == "test"])
 
 
-# Save per-seed long-form test table
+# Save per-seed long-form validation-facing table
 Path(OUTROOT).mkdir(parents=True, exist_ok=True)
-long_path = f"{OUTROOT}/paper_table_test_full_per_seed.csv"
+long_path = f"{OUTROOT}/paper_table_validation_full_per_seed.csv"
 with open(long_path, "w", newline="", encoding="utf-8") as f:
     w = csv.DictWriter(f, fieldnames=list(all_seed_rows[0].keys()))
     w.writeheader()
@@ -362,7 +362,7 @@ with open(long_path, "w", newline="", encoding="utf-8") as f:
 print(f"Wrote {long_path}")
 
 
-# Save compact test table with mean over seeds (acc/tokens)
+# Save compact validation-facing table with mean over seeds (acc/tokens)
 from collections import defaultdict
 import statistics
 
@@ -388,7 +388,7 @@ for (policy, budget_tag), items in sorted(group.items(), key=lambda x: (x[0][0],
         }
     )
 
-compact_path = f"{OUTROOT}/paper_table_test_acc_tokens.csv"
+compact_path = f"{OUTROOT}/paper_table_validation_acc_tokens.csv"
 with open(compact_path, "w", newline="", encoding="utf-8") as f:
     w = csv.DictWriter(f, fieldnames=list(compact_rows[0].keys()))
     w.writeheader()

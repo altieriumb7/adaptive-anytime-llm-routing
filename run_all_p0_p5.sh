@@ -52,42 +52,8 @@ pip install -r requirements.train.txt
 pip install -r requirements.paper.txt
 
 #############################################
-# 0.1 Hotfixes (to avoid known breakages)
+# 0.1 Repo sanity: source files already contain the reproducibility fixes
 #############################################
-
-# Fix clean_trajectories wrong import: use scripts/anytime_postprocess.py
-if grep -q "from src.data.anytime_postprocess import postprocess_trajectory_record" scripts/clean_trajectories.py; then
-  echo "== Hotfix: patching scripts/clean_trajectories.py import"
-  sed -i 's/from src.data.anytime_postprocess import postprocess_trajectory_record/from scripts.anytime_postprocess import postprocess_trajectory_record/g' scripts/clean_trajectories.py
-fi
-
-# Fix eval_depth_router main() calibrator order bug (safe even if not used)
-if grep -q "calibrator=calibrator" scripts/eval_depth_router.py && grep -q "calibrator = ConfidenceCalibrator.from_json" scripts/eval_depth_router.py; then
-  echo "== Hotfix: patching scripts/eval_depth_router.py calibrator order"
-  python - <<'PY'
-import re, pathlib
-p = pathlib.Path("scripts/eval_depth_router.py")
-s = p.read_text(encoding="utf-8")
-# Move calibrator definition BEFORE evaluate(...) call in main()
-# (simple robust rewrite)
-s2 = s
-# Ensure: calibrator = ... appears before res = evaluate(...)
-main_pat = re.compile(r"def main\(\)\s*->\s*None:\s*(.*?)if __name__ == \"__main__\":", re.S)
-m = main_pat.search(s)
-if m:
-    block = m.group(1)
-    # If block contains res = evaluate(... calibrator=calibrator ...) before defining calibrator, fix it
-    if "res = evaluate(" in block and "calibrator=calibrator" in block:
-        # remove existing calibrator line (later)
-        block2 = re.sub(r"\n\s*calibrator\s*=\s*ConfidenceCalibrator\.from_json\(args\.calibrator\)\s*if\s*args\.calibrator\s*else\s*None\s*\n", "\n", block)
-        # insert calibrator line right after args parsing
-        block2 = re.sub(r"(args\s*=\s*ap\.parse_args\(\)\s*\n)", r"\1    calibrator = ConfidenceCalibrator.from_json(args.calibrator) if args.calibrator else None\n\n", block2, count=1)
-        # replace calibrator=calibrator remains valid now
-        s2 = s[:m.start(1)] + block2 + s[m.end(1):]
-p.write_text(s2, encoding="utf-8")
-print("patched eval_depth_router.py")
-PY
-fi
 
 #############################################
 # P0) Sanity checks
