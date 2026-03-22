@@ -5,7 +5,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--traj_jsonl", required=True)
     ap.add_argument("--out_jsonl", required=True)
-    ap.add_argument("--budgets", default="1,2,4", help="comma-separated budgets, e.g. 1,2,4")
+    ap.add_argument("--budgets", default="1,2,3,4", help="comma-separated budgets, e.g. 1,2,3,4")
     ap.add_argument("--max_per_uid", type=int, default=None)
     ap.add_argument("--conf_target", required=True)
     ap.add_argument("--conf_pos", required=True)
