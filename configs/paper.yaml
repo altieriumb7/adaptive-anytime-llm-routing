@@ -1,13 +1,16 @@
-# Paper artifact generation config
-# Edit the preds_jsonl paths to point to the JSONL you generate with:
-#   python scripts/eval_anytime.py ... --save_jsonl <path>
+# Canonical paper artifact generation config.
+# This script regenerates paper-side figures/tables from:
+#   (a) compute-matched router summaries in artifacts/router_optionB
+#   (b) per-budget prediction JSONL files (results_abl/*.jsonl)
 
 output_dir: artifacts/paper
 budgets: [1, 2, 3, 4]
 n_bins: 10
 
-# Router CSV already present in the repo
+# Canonical GSM8K router summary used by the manuscript tables/pareto plot.
 router_csv: artifacts/router_optionB/paper_table_test_acc_tokens.csv
+
+# Prediction files used for reliability / risk-coverage / TTC plots.
 models:
   - name: main_adapter
     preds_jsonl: results_abl/preds_main_adapter.jsonl

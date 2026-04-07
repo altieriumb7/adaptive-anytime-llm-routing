@@ -118,15 +118,31 @@ def parse_acc_tokens(cell: str) -> Optional[Tuple[float, float]]:
 
 
 def load_router_table(path: str) -> Dict[str, Dict[str, Tuple[float, float]]]:
-    """Return budget_tag -> policy -> (acc, tokens)."""
+    """Return budget_tag -> policy -> (acc, tokens). Supports legacy and canonical CSVs."""
     out: Dict[str, Dict[str, Tuple[float, float]]] = {}
     with open(path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+        fields = set(reader.fieldnames or [])
+        canonical = {"policy", "budget_tag", "acc_mean", "tokens_mean"}.issubset(fields)
+
         for row in reader:
             budget_tag = row.get("budget_tag") or row.get("budget") or row.get("tag")
             if not budget_tag:
                 continue
-            out[budget_tag] = {}
+            out.setdefault(budget_tag, {})
+
+            if canonical:
+                pol = str(row.get("policy", "")).strip()
+                if not pol:
+                    continue
+                try:
+                    acc = float(row.get("acc_mean"))
+                    tok = float(row.get("tokens_mean"))
+                except (TypeError, ValueError):
+                    continue
+                out[budget_tag][pol] = (acc, tok)
+                continue
+
             for k, v in row.items():
                 if k == "budget_tag":
                     continue

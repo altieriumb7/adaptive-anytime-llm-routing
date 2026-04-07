@@ -1,14 +1,14 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
 import random
 import re
 from dataclasses import dataclass
-from typing import Dict, Any, Iterable, List, Optional, Tuple
-from src.data.judging import is_correct
-from src.calibration.conf_calibrator import ConfidenceCalibrator
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from src.calibration.conf_calibrator import ConfidenceCalibrator
+from src.data.judging import is_correct
 from src.utils.parsing import parse_answer_and_conf
 
 CONF_LINE_RE = re.compile(r"^\s*CONF\s*:\s*[01](?:\.\d+)?\s*$", re.IGNORECASE)
@@ -16,34 +16,25 @@ FINAL_LINE_RE = re.compile(r"^\s*####\s*.+\s*$", re.IGNORECASE)
 
 
 def _strip_existing_final_and_conf(text: str) -> str:
-    lines = text.splitlines()
+    lines = (text or "").splitlines()
     kept = []
     for ln in lines:
-        if FINAL_LINE_RE.match(ln):
-            continue
-        if CONF_LINE_RE.match(ln):
+        if FINAL_LINE_RE.match(ln) or CONF_LINE_RE.match(ln):
             continue
         kept.append(ln)
     return "\n".join(kept).strip()
 
 
 def canonicalize_response(raw: str, answer: Optional[str], conf: Optional[float]) -> Optional[str]:
-    """
-    Make the training target stable:
-    - keep reasoning, but force standardized last lines:
-        #### <answer>
-        CONF: <p>
-    Returns None if no answer.
-    """
     if answer is None:
         return None
-    body = _strip_existing_final_and_conf(raw).strip()
-    p = 0.75 if conf is None else max(0.0, min(1.0, conf))
-    # round to 2 decimals for stability
+    body = _strip_existing_final_and_conf(raw)
+    p = 0.75 if conf is None else max(0.0, min(1.0, float(conf)))
     p_str = f"{p:.2f}"
     if body:
         return f"{body}\n#### {answer}\nCONF: {p_str}"
     return f"#### {answer}\nCONF: {p_str}"
+
 
 def make_messages(problem: str, budget_t: int, task: str = "math") -> List[Dict[str, str]]:
     budget_desc = {
@@ -54,12 +45,8 @@ def make_messages(problem: str, budget_t: int, task: str = "math") -> List[Dict[
     }.get(budget_t, f"BUDGET={budget_t}")
 
     task = (task or "math").lower().strip()
-
     if task in {"yesno", "boolq", "strategyqa"}:
-        system = (
-            "You are a careful question-answering assistant. "
-            "You must follow the required output format exactly."
-        )
+        system = "You are a careful question-answering assistant. You must follow the required output format exactly."
         user = (
             f"{budget_desc}\n\n"
             "Answer the question.\n\n"
@@ -72,11 +59,7 @@ def make_messages(problem: str, budget_t: int, task: str = "math") -> List[Dict[
         )
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
-    # default: math
-    system = (
-        "You are a careful math solver. "
-        "You must follow the required output format exactly."
-    )
+    system = "You are a careful math solver. You must follow the required output format exactly."
     user = (
         f"{budget_desc}\n\n"
         "Solve the problem.\n\n"
@@ -93,8 +76,8 @@ def make_messages(problem: str, budget_t: int, task: str = "math") -> List[Dict[
 class SFTExample:
     uid: str
     budget_t: int
-    messages: List[Dict[str, str]]  # system+user
-    response: str                  # assistant content (target)
+    messages: List[Dict[str, str]]
+    response: str
     gold: str
     meta: Dict[str, Any]
 
@@ -103,9 +86,8 @@ def iter_trajectory_jsonl(path_jsonl: str) -> Iterable[Dict[str, Any]]:
     with open(path_jsonl, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if not line:
-                continue
-            yield json.loads(line)
+            if line:
+                yield json.loads(line)
 
 
 def build_sft_examples(
@@ -115,58 +97,49 @@ def build_sft_examples(
     keep_only_if_answer_present: bool = True,
     seed: int = 0,
     max_per_uid: Optional[int] = None,
-    conf_target: str = "teacher",   # teacher | label | smooth | calibrated_teacher
+    conf_target: str = "teacher",
     conf_pos: float = 0.90,
     conf_neg: float = 0.10,
-    calibrator_path: Optional[str] = None
-
+    calibrator_path: Optional[str] = None,
 ) -> List[SFTExample]:
-    """
-    Convert one JSONL (trajectories) into a list of (messages, response) examples.
-
-    Default budgets: (1,2,4) because t=3 is code generation in our teachers pipeline.
-    """
     random.seed(seed)
     out: List[SFTExample] = []
+    calibrator = ConfidenceCalibrator.from_json(calibrator_path) if calibrator_path else None
 
     for obj in iter_trajectory_jsonl(traj_jsonl):
         uid = obj["uid"]
         problem = obj["problem"]
         gold = obj["gold"]
         meta = obj.get("meta", {})
+        task = meta.get("task", "math") if isinstance(meta, dict) else "math"
 
-        cps = {cp["t"]: cp for cp in obj["checkpoints"]}
-        calibrator = ConfidenceCalibrator.from_json(calibrator_path) if calibrator_path else None
-
-        mode = (conf_target or "teacher").lower()
-        if mode in {"label", "labels", "hard"}:
-            conf = 1.0 if is_correct(answer, gold) else 0.0
-        elif mode in {"smooth", "label_smooth", "smoothed"}:
-            conf = float(conf_pos) if is_correct(answer, gold) else float(conf_neg)
-        elif mode in {"calibrated_teacher", "cal_teacher"}:
-            base_conf = 0.75 if conf is None else float(conf)
-            conf = float(calibrator.calibrate(t, base_conf)) if calibrator else base_conf
-        # else teacher: keep conf
-
-        # choose which budgets to emit
+        cps = {int(cp["t"]): cp for cp in obj.get("checkpoints", []) if "t" in cp}
         chosen = list(budgets)
         if max_per_uid is not None and len(chosen) > max_per_uid:
             random.shuffle(chosen)
             chosen = chosen[:max_per_uid]
 
         for t in chosen:
-            cp = cps.get(t)
+            cp = cps.get(int(t))
             if cp is None:
                 continue
 
             raw = cp.get("raw", "")
-            # parse answer/conf if not present
             answer = cp.get("answer")
             conf = cp.get("conf")
             if answer is None or conf is None:
                 a2, c2 = parse_answer_and_conf(raw)
                 answer = answer or a2
                 conf = conf if conf is not None else c2
+
+            mode = (conf_target or "teacher").lower()
+            if mode in {"label", "labels", "hard"}:
+                conf = 1.0 if is_correct(answer, gold) else 0.0
+            elif mode in {"smooth", "label_smooth", "smoothed"}:
+                conf = float(conf_pos) if is_correct(answer, gold) else float(conf_neg)
+            elif mode in {"calibrated_teacher", "cal_teacher"}:
+                base_conf = 0.75 if conf is None else float(conf)
+                conf = float(calibrator.calibrate(int(t), base_conf)) if calibrator else base_conf
 
             response = canonicalize_response(raw, answer=answer, conf=conf)
             if keep_only_if_answer_present and response is None:
@@ -175,8 +148,8 @@ def build_sft_examples(
             out.append(
                 SFTExample(
                     uid=uid,
-                    budget_t=t,
-                    messages = make_messages(problem, budget_t=t, task=task),
+                    budget_t=int(t),
+                    messages=make_messages(problem, budget_t=int(t), task=task),
                     response=response,
                     gold=gold,
                     meta=meta,
@@ -204,4 +177,3 @@ def save_sft_jsonl(examples: List[SFTExample], out_path: str) -> None:
                 )
                 + "\n"
             )
-

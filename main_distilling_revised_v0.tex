@@ -137,52 +137,14 @@ Two properties are important for routing. First, the trained adapter is much str
 \subsection{Compute-Matched Routing on GSM8K}
 Table~\ref{tab:main_results_allbudgets} reports compute-matched routing results on GSM8K test using the Option-B protocol from Section~\ref{sec:optionb}.
 
-\begin{table*}[t]
-\centering
-\small
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.1}
-\begin{tabularx}{\textwidth}{lYYYY}
-\toprule
-Policy (test, mean$\pm$std over seeds) & B1 & B2 & B3 & B4 \\
-\midrule
-Fixed & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6603$\pm$0.0244 (256$\pm$0, 2.00$\pm$0.00) & 0.6540$\pm$0.0311 (480$\pm$0, 3.00$\pm$0.00) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
-\addlinespace
-Confidence & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6937$\pm$0.0063 (260$\pm$19, 1.80$\pm$0.07) & 0.6654$\pm$0.0201 (483$\pm$17, 2.82$\pm$0.07) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
-Random (matched) & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6494$\pm$0.0224 (256$\pm$0, 1.78$\pm$0.08) & 0.6561$\pm$0.0217 (480$\pm$0, 2.81$\pm$0.02) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
-Stability (tuned) & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6710$\pm$0.0251 (258$\pm$5, 1.83$\pm$0.02) & 0.6844$\pm$0.0305 (484$\pm$10, 2.93$\pm$0.03) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
-Oracle reference & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) \\
-\bottomrule
-\end{tabularx}
-\caption{GSM8K test performance across compute tiers. Each cell reports accuracy, with mean allocated tokens and mean stopping steps in parentheses. Values are mean$\pm$std over three split seeds. The oracle row is a budget-agnostic reference shown in each column for ease of comparison.}
-\label{tab:main_results_allbudgets}
-\end{table*}
+\input{artifacts/paper/tables/router_table.tex}
 
 At B2, confidence routing yields the largest gain over fixed depth (0.6937 vs.\ 0.6603) at nearly identical compute. At B3, stability routing performs best among the non-oracle policies (0.6844 vs.\ 0.6540). The random-matched baseline remains close to fixed depth, suggesting that the gains arise from using trajectory information rather than merely changing the stopping histogram. The oracle reference indicates large remaining headroom: many examples are solvable earlier than B4, but the available signals do not yet identify those cases reliably.
 
 \subsection{Transfer to BoolQ}
 Table~\ref{tab:router_boolq} reports compute-matched transfer results on BoolQ validation using the same GSM8K-trained anytime model and the same router family, with router tuning performed on BoolQ development splits and no additional model fine-tuning.
 
-\begin{table*}[t]
-\centering
-\small
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.1}
-\begin{tabularx}{\textwidth}{lYYYY}
-\toprule
-Policy (validation, mean$\pm$std over seeds) & B1 & B2 & B3 & B4 \\
-\midrule
-Fixed & 0.1200$\pm$0.0173 (96$\pm$0, 1.00$\pm$0.00) & 0.2633$\pm$0.0751 (256$\pm$0, 2.00$\pm$0.00) & 0.4367$\pm$0.0493 (480$\pm$0, 3.00$\pm$0.00) & 0.4833$\pm$0.0208 (800$\pm$0, 4.00$\pm$0.00) \\
-\addlinespace
-Confidence & 0.1200$\pm$0.0173 (96$\pm$0, 1.00$\pm$0.00) & 0.2026$\pm$0.0129 (256$\pm$0, 1.68$\pm$0.00) & 0.3182$\pm$0.0119 (480$\pm$0, 2.64$\pm$0.00) & 0.4833$\pm$0.0208 (800$\pm$0, 4.00$\pm$0.00) \\
-Random (matched) & 0.1200$\pm$0.0173 (96$\pm$0, 1.00$\pm$0.00) & 0.2026$\pm$0.0129 (256$\pm$0, 1.68$\pm$0.00) & 0.3182$\pm$0.0119 (480$\pm$0, 2.64$\pm$0.00) & 0.4833$\pm$0.0208 (800$\pm$0, 4.00$\pm$0.00) \\
-Stability (tuned) & 0.1200$\pm$0.0173 (96$\pm$0, 1.00$\pm$0.00) & 0.2519$\pm$0.0188 (256$\pm$0, 1.83$\pm$0.00) & 0.3934$\pm$0.0536 (477$\pm$4, 2.83$\pm$0.01) & 0.4833$\pm$0.0208 (800$\pm$0, 4.00$\pm$0.00) \\
-Oracle reference & 0.6133$\pm$0.0503 (554$\pm$35, 3.08$\pm$0.13) & -- & -- & -- \\
-\bottomrule
-\end{tabularx}
-\caption{BoolQ validation performance across compute tiers. Each cell reports accuracy, with mean allocated tokens and mean stopping steps in parentheses. Values are mean$\pm$std over three split seeds. The oracle row is a single reference point rather than a tier-specific budget-matched result.}
-\label{tab:router_boolq}
-\end{table*}
+\input{artifacts/paper/tables/router_table_boolq.tex}
 
 In this transfer setting, confidence routing underperforms fixed depth at B2 and B3, while stability remains closer to the fixed-depth baseline. This pattern suggests that the confidence signal learned from GSM8K-style mathematical reasoning does not directly transfer to yes/no question answering.
 
@@ -191,7 +153,7 @@ Figure~\ref{fig:pareto} shows the accuracy--compute trade-off for the routing po
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.98\linewidth]{router_pareto_all_fixed.pdf}
+\includegraphics[width=0.98\linewidth]{router_pareto_all.pdf}
 \caption{Accuracy versus mean allocated tokens for routing policies on GSM8K.}
 \label{fig:pareto}
 \end{figure}
@@ -212,7 +174,7 @@ The empirical study uses a single 1.5B backbone, four discrete budgets, and thre
 
 % ======================================================================
 \section{Reproducibility}
-The experimental pipeline is script-driven and reproducible from a single entry point. The workflow trains the QLoRA adapter, runs anytime evaluation to obtain per-step predictions, builds per-seed routing splits, fits per-seed Platt calibrators, evaluates compute-matched routers, and generates tables and figures. The paper's main numeric results are taken directly from the generated artifacts rather than being copied manually from ad hoc runs.
+The experimental pipeline is script-driven and partially reproducible from the shipped repository. Tables and figures can be regenerated from bundled prediction/router artifacts, and the paper values are sourced from those generated files. Full end-to-end regeneration (including trajectory generation and some evaluation splits) depends on external datasets, model checkpoints, and Git LFS objects not bundled directly in this snapshot.
 
 % ======================================================================
 \section{Conclusion}
