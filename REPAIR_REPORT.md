@@ -1,88 +1,66 @@
-# Repair Report
+# REPAIR_REPORT
 
-## Scope
-This repair pass treated the repository as a single research artifact (code + paper), with fixes focused on correctness, consistency, and honest reproducibility.
+## Audit basis (from repository contents)
 
-## What was broken and what was changed
+This repair pass treated code + paper as one artifact and re-audited:
+- paper entrypoint and LaTeX dependency references,
+- router/evaluation scripts and table-generation scripts,
+- canonical vs legacy artifact families,
+- shipped reproducibility constraints (including Git LFS placeholders).
 
-### 1) Paper figure mismatch
-- **Issue:** `main_distilling_revised_v0.tex` referenced `router_pareto_all_fixed.pdf`, but bundled artifact is `router_pareto_all.pdf`.
-- **Fix:** Updated the figure include to `router_pareto_all.pdf`.
+## Canonical decisions
 
-### 2) Broken evaluation logic (`scripts/eval_anytime.py`)
-- **Issues found:**
-  - broken loop/indentation (`for ... else` misuse), causing budget loop logic to be incorrect;
-  - duplicate/contradictory helper definitions;
-  - undefined `stopping` reference in one generation path;
-  - fragile parsing/metric handling.
-- **Fix:** Rebuilt the script into a single clean evaluation flow that:
-  - iterates all budgets deterministically per example;
-  - generates with explicit stopping criteria for `####` + `CONF:` format;
-  - records per-budget correctness/calibration stats;
-  - writes JSONL rows with token accounting;
-  - supports optional calibration application.
+- **Paper entrypoint:** `main_distilling_revised_v0.tex`
+- **Canonical paper build path:** `run_paper.sh`
+- **Canonical GSM8K result family:** `artifacts/router_optionB/`
+- **Canonical BoolQ result family:** `artifacts/router_optionB_boolq/`
+- **Canonical generated paper assets:** `artifacts/paper/`
 
-### 3) Broken training-data build path (`src/train/sft_build.py`, `scripts/build_sft_from_trajectories.py`)
-- **Issues found:**
-  - use-before-assign and undefined variables (`answer`, `t`, `task`) in confidence-target logic;
-  - CLI arguments accepted by wrapper script but not forwarded to core builder;
-  - type/plumbing mismatches for confidence options.
-- **Fixes:**
-  - rewrote `build_sft_examples` sequencing so answer/conf are parsed first, then confidence target policy is applied per budget;
-  - added robust task derivation from `meta`;
-  - moved calibrator load outside inner loops;
-  - fixed CLI plumbing in `scripts/build_sft_from_trajectories.py` (all key args now forwarded).
+These choices are now aligned across paper text, scripts, and docs.
 
-### 4) Artifact-generation mismatch (`configs/paper.yaml`, `scripts/make_paper_artifacts.py`)
-- **Issue:** `make_paper_artifacts.py` expected an old wide router CSV cell format (`"0.65 (96)"`), but canonical router artifacts are in long numeric format (`policy,budget_tag,acc_mean,tokens_mean,...`).
-- **Fix:** Updated loader to support both formats and treat `artifacts/router_optionB/paper_table_test_acc_tokens.csv` as canonical long-form input.
+## Paper/file synchronization status
 
-### 5) Conflicting result families
-- **Issue:** multiple overlapping families (`results`, `results_abl`, `results_main_full`, seed folders, etc.) without one explicit canonical manuscript source.
-- **Fix:** documented and enforced canonical families in README:
-  - GSM8K router: `artifacts/router_optionB/`
-  - BoolQ transfer router: `artifacts/router_optionB_boolq/`
-  - paper outputs: `artifacts/paper/*`
-  - plot prediction sources: `results_abl/preds_main_adapter.jsonl`, `results_abl/preds_base.jsonl`
+### Resolved references in main paper
+- `\input{artifacts/paper/tables/router_table.tex}` exists.
+- `\input{artifacts/paper/tables/router_table_boolq.tex}` exists.
+- `\includegraphics{router_pareto_all.pdf}` resolves via `\graphicspath` to `artifacts/paper/figures/router_pareto_all.pdf`.
 
-### 6) Missing artifact reality check (LFS placeholders)
-- **Issue:** several files are Git LFS pointers; full end-to-end reproduction cannot be claimed from repo snapshot alone.
-- **Fix:** README and paper reproducibility wording were softened to explicitly state partial reproducibility and external dependencies.
+### Bibliography style
+- Main paper uses inline `thebibliography`; no missing external `.bib` dependency is required.
 
-## Paper synchronization actions
-- Replaced manually inlined main/BoolQ router tables in LaTeX with `\input{artifacts/paper/tables/router_table.tex}` and `\input{artifacts/paper/tables/router_table_boolq.tex}` to keep paper and generated artifacts synchronized.
-- Updated reproducibility section wording to avoid overstating full reproducibility.
+## Main-result traceability (claim -> concrete artifact)
 
-## What remains impossible from shipped repo alone
-- Full regeneration of all experiments requiring missing LFS blobs (notably certain router splits and `results_main_full` predictions).
-- End-to-end regeneration requiring unavailable external checkpoints/data/API outputs.
+- GSM8K compute-matched routing numbers in the paper trace to
+  `artifacts/router_optionB/paper_table_test_full_per_seed.csv`,
+  rendered into `artifacts/paper/tables/router_table.tex` via
+  `scripts/make_router_latex_table.py`.
+- BoolQ transfer table traces to
+  `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`,
+  rendered into `artifacts/paper/tables/router_table_boolq.tex`.
+- Pareto figure traces to
+  `artifacts/paper/figures/router_pareto_all.pdf`, generated by
+  `scripts/make_paper_artifacts.py` with `configs/paper.yaml`.
 
-## Numbers status
-- Reported manuscript numbers were **reconciled to existing canonical artifacts** and table generation pipeline.
-- This pass did **not** regenerate all experimental predictions from raw model runs.
+## Ambiguity reduction performed
 
-## Canonical result family (final)
-- `artifacts/router_optionB/` and `artifacts/router_optionB_boolq/` for paper router metrics.
+- Kept one canonical reproduction path (`run_paper.sh`) and documented it as authoritative.
+- Kept legacy artifact families for provenance only; explicitly marked non-canonical in README.
+- Preserved conservative wording where full end-to-end reproduction is blocked by missing LFS/data/checkpoints.
 
-## Final cleanup pass
+## Reproducibility blockers explicitly retained
 
-### What remained broken
-- BoolQ table generation still emitted a test-captioned table in some paths, despite paper semantics being validation.
-- BoolQ per-seed CSV rows were historically labeled `split=test`, which could cause accidental filtering mismatches.
-- `run_paper.sh` was not a full canonical build path (missing BoolQ table generation + dependency checks + explicit failures).
-- No automated LaTeX dependency validator existed for `\input{}` and `\includegraphics{}` targets.
+The shipped repo still contains non-materialized Git LFS pointer files required by some pipelines (13 pointers detected), including router split files and full prediction JSONLs. Full from-scratch reproduction remains out of scope without these external blobs.
 
-### What was fixed
-- `scripts/make_router_latex_table.py` now supports explicit split filtering plus legacy split aliases and auto-generates split-aware captions (validation/test) when not provided.
-- BoolQ table generation path was made canonical as validation: `--split_label validation --split_filter validation --legacy_split_aliases test`.
-- `run_paper.sh` now acts as the canonical one-command workflow:
-  - regenerates paper artifacts,
-  - regenerates GSM8K and BoolQ router tables,
-  - fails clearly if required router CSVs are missing,
-  - runs automated paper asset checks,
-  - compiles with `pdflatex` when available and otherwise reports an explicit skip.
-- Added `scripts/check_paper_assets.py` to verify paper dependency paths from `main_distilling_revised_v0.tex`.
-- Updated paper and docs to explicitly state BoolQ validation semantics and historical split-label caveat.
+## Validation outcomes in this pass
 
-### What still cannot be fully validated from this snapshot
-- End-to-end experimental regeneration requiring missing Git LFS objects and external model/data/API dependencies remains out of scope for this shipped checkout.
+- `python -m compileall scripts src` ✅
+- GSM8K + BoolQ table regeneration via `scripts/make_router_latex_table.py` ✅
+- `python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex` ✅
+- `bash run_paper.sh` ⚠️ failed at dependency install / missing `matplotlib` in this runtime; script correctly failed fast.
+- `pdflatex` unavailable in this runtime (paper compile step not executable here).
+
+## Truthfulness status
+
+- No results were invented.
+- No unsupported claims were added.
+- Reproducibility statements remain conservative and explicit about limitations.
