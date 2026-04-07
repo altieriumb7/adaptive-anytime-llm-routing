@@ -63,3 +63,26 @@ This repair pass treated the repository as a single research artifact (code + pa
 
 ## Canonical result family (final)
 - `artifacts/router_optionB/` and `artifacts/router_optionB_boolq/` for paper router metrics.
+
+## Final cleanup pass
+
+### What remained broken
+- BoolQ table generation still emitted a test-captioned table in some paths, despite paper semantics being validation.
+- BoolQ per-seed CSV rows were historically labeled `split=test`, which could cause accidental filtering mismatches.
+- `run_paper.sh` was not a full canonical build path (missing BoolQ table generation + dependency checks + explicit failures).
+- No automated LaTeX dependency validator existed for `\input{}` and `\includegraphics{}` targets.
+
+### What was fixed
+- `scripts/make_router_latex_table.py` now supports explicit split filtering plus legacy split aliases and auto-generates split-aware captions (validation/test) when not provided.
+- BoolQ table generation path was made canonical as validation: `--split_label validation --split_filter validation --legacy_split_aliases test`.
+- `run_paper.sh` now acts as the canonical one-command workflow:
+  - regenerates paper artifacts,
+  - regenerates GSM8K and BoolQ router tables,
+  - fails clearly if required router CSVs are missing,
+  - runs automated paper asset checks,
+  - compiles with `pdflatex` when available and otherwise reports an explicit skip.
+- Added `scripts/check_paper_assets.py` to verify paper dependency paths from `main_distilling_revised_v0.tex`.
+- Updated paper and docs to explicitly state BoolQ validation semantics and historical split-label caveat.
+
+### What still cannot be fully validated from this snapshot
+- End-to-end experimental regeneration requiring missing Git LFS objects and external model/data/API dependencies remains out of scope for this shipped checkout.

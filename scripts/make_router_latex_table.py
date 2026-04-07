@@ -39,24 +39,39 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--in_csv', required=True)
     ap.add_argument('--out_tex', required=True)
-    ap.add_argument('--caption', default='Test performance across compute tiers (accuracy; mean tokens and mean steps in parentheses). Values are mean$\\pm$std over three split seeds.')
+    ap.add_argument('--caption', default=None, help='If omitted, an automatic caption is generated from --split_label.')
     ap.add_argument('--label', default='tab:main_results_allbudgets')
     ap.add_argument('--split_label', default='test', help='Label used in the header row, e.g. test or validation.')
+    ap.add_argument('--split_filter', default=None, help='CSV split value to keep. Defaults to --split_label.')
+    ap.add_argument(
+        '--legacy_split_aliases',
+        default='',
+        help='Comma-separated additional split values accepted for filtering (e.g. test for historical BoolQ validation CSVs).',
+    )
     ap.add_argument('--oracle_everywhere', action='store_true', help='Repeat Oracle across all budget columns.')
     ap.add_argument('--oracle-single-reference', dest='oracle_single_reference', action='store_true', help='Render Oracle once as a single offline reference point and show -- for later budgets.')
     ap.add_argument('--no-oracle-single-reference', dest='oracle_single_reference', action='store_false', help='Disable single-reference oracle rendering.')
     ap.set_defaults(oracle_single_reference=None)
     args = ap.parse_args()
 
+    split_filter = args.split_filter or args.split_label
+    keep_splits = {split_filter}
+    keep_splits.update({x.strip() for x in str(args.legacy_split_aliases).split(',') if x.strip()})
+
     rows: List[Dict[str, str]] = []
+    seen_splits = set()
     with open(args.in_csv, 'r', encoding='utf-8') as f:
         r = csv.DictReader(f)
         for row in r:
-            if row.get('split') == 'test':
+            seen_splits.add(row.get('split'))
+            if row.get('split') in keep_splits:
                 rows.append(row)
 
     if not rows:
-        raise SystemExit('No test rows found. Run scripts/run_router_optionB_repro.py first.')
+        raise SystemExit(
+            f'No rows found for split filter {sorted(keep_splits)} in {args.in_csv}. '
+            f'Available split values: {sorted(s for s in seen_splits if s is not None)}'
+        )
 
     budgets = sorted({row['budget_tag'] for row in rows}, key=lambda x: int(x.lstrip('B')))
     policies = ['fixed', 'conf', 'random', 'stability', 'oracle']
@@ -109,7 +124,14 @@ def main() -> None:
 
     lines.append('\\bottomrule')
     lines.append('\\end{tabularx}')
-    lines.append(f"\\caption{{{args.caption}}}")
+    caption = args.caption
+    if caption is None:
+        caption = (
+            f'{split_label.capitalize()} performance across compute tiers '
+            '(accuracy; mean tokens and mean steps in parentheses). '
+            'Values are mean$\\pm$std over three split seeds.'
+        )
+    lines.append(f"\\caption{{{caption}}}")
     lines.append(f"\\label{{{args.label}}}")
     lines.append('\\end{table*}')
 

@@ -6,6 +6,8 @@
 - Artifact generator config and script now agree on canonical router CSV format (`policy,budget_tag,acc_mean,tokens_mean,...`).
 - SFT build CLI arguments now match core builder function parameters.
 - Evaluation script now executes a consistent budget loop and produces per-budget rows for downstream router/calibration scripts.
+- Paper build now has a canonical one-command path (`run_paper.sh`) that regenerates artifacts, router tables, validates paper dependencies, and optionally compiles LaTeX.
+- BoolQ routing table generation is now explicitly validation-semantic even when upstream CSV rows carry historical `split=test` labels.
 
 ## Fixed mismatches
 1. **LaTeX figure filename mismatch**
@@ -22,6 +24,12 @@
 
 5. **Paper source vs generated tables mismatch risk**
    - replaced hard-coded table bodies with generated table inputs.
+
+6. **BoolQ validation/test mismatch**
+   - table generation now uses explicit split routing (`--split_filter validation`) with documented legacy alias handling (`test`) for historical rows in the validation-named CSV.
+
+7. **Missing automated paper dependency checks**
+   - added `scripts/check_paper_assets.py` and integrated it in `run_paper.sh`.
 
 ## Remaining limitations
 - Some datasets/results are present only as Git LFS pointers in this checkout.

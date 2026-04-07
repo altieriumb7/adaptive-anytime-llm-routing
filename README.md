@@ -24,26 +24,32 @@ pip install -r requirements.openai.txt
 pip install -r requirements.train.txt
 ```
 
-## Minimal truthful reproduction (from shipped repo)
+## Canonical paper build (from shipped repo)
 
-This path reproduces the paper-facing tables/figures from bundled artifacts.
+Use `run_paper.sh` as the single canonical paper-artifact entrypoint. It:
+- regenerates figures/tables via `scripts/make_paper_artifacts.py`,
+- regenerates GSM8K and BoolQ router LaTeX tables,
+- validates all `\includegraphics` and `\input` dependencies in `main_distilling_revised_v0.tex`,
+- compiles LaTeX if `pdflatex` is installed.
 
 ```bash
-# 1) Regenerate paper figures/tables from canonical artifacts
-python scripts/make_paper_artifacts.py --config configs/paper.yaml
+bash run_paper.sh
+```
 
-# 2) Regenerate router LaTeX tables from canonical per-seed summaries
+If you prefer explicit manual steps, use:
+
+```bash
+python scripts/make_paper_artifacts.py --config configs/paper.yaml
 python scripts/make_router_latex_table.py \
   --in_csv artifacts/router_optionB/paper_table_test_full_per_seed.csv \
   --out_tex artifacts/paper/tables/router_table.tex \
-  --label tab:main_results_allbudgets --split_label test --oracle_everywhere
-
+  --label tab:main_results_allbudgets --split_label test --split_filter test --oracle_everywhere
 python scripts/make_router_latex_table.py \
   --in_csv artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv \
   --out_tex artifacts/paper/tables/router_table_boolq.tex \
-  --label tab:router_boolq --split_label validation --oracle-single-reference
-
-# 3) Compile the paper
+  --label tab:router_boolq --split_label validation --split_filter validation \
+  --legacy_split_aliases test --oracle-single-reference
+python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex
 pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex
 pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex
 ```
@@ -79,3 +85,9 @@ Some files in this repository are Git LFS pointers (not materialized blobs), inc
 - several BoolQ files under `results/`
 
 Because of that, **full end-to-end regeneration from raw data is not guaranteed from this snapshot alone**. The provided minimal path above is the truthful “works-from-shipped-files” route.
+
+### BoolQ split semantics (canonical)
+
+- Canonical BoolQ paper table source: `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`.
+- Manuscript semantics: **validation only** (not hidden test).
+- Historical note: this CSV can contain `split=test` row labels from older export scripts; `run_paper.sh` normalizes this by generating the BoolQ table with `--split_label validation --split_filter validation --legacy_split_aliases test`.
