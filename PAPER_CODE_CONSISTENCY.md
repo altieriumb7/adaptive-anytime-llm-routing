@@ -1,40 +1,45 @@
-# Paper–Code Consistency Report
+# PAPER_CODE_CONSISTENCY
 
-## Confirmed matches
-- Main paper figure now references an existing file: `artifacts/paper/figures/router_pareto_all.pdf`.
-- Main and BoolQ router tables in the manuscript are now sourced directly from generated artifacts via `\input`.
-- Artifact generator config and script now agree on canonical router CSV format (`policy,budget_tag,acc_mean,tokens_mean,...`).
-- SFT build CLI arguments now match core builder function parameters.
-- Evaluation script now executes a consistent budget loop and produces per-budget rows for downstream router/calibration scripts.
-- Paper build now has a canonical one-command path (`run_paper.sh`) that regenerates artifacts, router tables, validates paper dependencies, and optionally compiles LaTeX.
-- BoolQ routing table generation is now explicitly validation-semantic even when upstream CSV rows carry historical `split=test` labels.
+## Canonical synchronization contract
 
-## Fixed mismatches
-1. **LaTeX figure filename mismatch**
-   - from `router_pareto_all_fixed.pdf` -> `router_pareto_all.pdf`.
+This artifact now uses one consistent contract:
 
-2. **Evaluation flow mismatch**
-   - fixed broken loop structure and undefined generation/stopping state in `scripts/eval_anytime.py`.
+- Paper source: `main_distilling_revised_v0.tex`
+- Generated table inputs: `artifacts/paper/tables/router_table.tex`, `artifacts/paper/tables/router_table_boolq.tex`
+- Generated figure input: `artifacts/paper/figures/router_pareto_all.pdf`
+- Source router CSVs:
+  - GSM8K: `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
+  - BoolQ: `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`
+- Canonical build script: `run_paper.sh`
 
-3. **SFT confidence plumbing mismatch**
-   - resolved undefined variables and reordered per-step confidence assignment logic.
+## Verified method/code alignment points
 
-4. **Router artifact parser mismatch**
-   - updated `scripts/make_paper_artifacts.py` to parse current canonical long-form router CSV.
+1. **Compute-matched Option-B routing in paper vs scripts**
+   - Paper describes compute-matched routing and deterministic mixtures.
+   - Router artifacts consumed by table generation are from `artifacts/router_optionB/` (canonical Option-B outputs).
 
-5. **Paper source vs generated tables mismatch risk**
-   - replaced hard-coded table bodies with generated table inputs.
+2. **BoolQ split semantics**
+   - Paper states BoolQ transfer as validation.
+   - Table build enforces `--split_filter validation` with `--legacy_split_aliases test` to handle historical labels conservatively.
 
-6. **BoolQ validation/test mismatch**
-   - table generation now uses explicit split routing (`--split_filter validation`) with documented legacy alias handling (`test`) for historical rows in the validation-named CSV.
+3. **Paper references are generated artifacts, not hand-copied tables**
+   - Main and BoolQ results are injected via `\input{...}` files under `artifacts/paper/tables/`.
 
-7. **Missing automated paper dependency checks**
-   - added `scripts/check_paper_assets.py` and integrated it in `run_paper.sh`.
+4. **Figure path semantics**
+   - Paper points to `router_pareto_all.pdf` and resolves through `\graphicspath` to `artifacts/paper/figures/`.
 
-## Remaining limitations
-- Some datasets/results are present only as Git LFS pointers in this checkout.
-- Full from-scratch reproduction (raw trajectory generation through final tables) is not guaranteed without external assets.
-- `pdflatex` is not installed in this runtime, so full compile validation is documented but not executed here.
+## Audited limitations (explicitly documented, not hidden)
 
-## Claims softened in the paper
-- Reproducibility wording now states **partial reproducibility from shipped artifacts** instead of implying complete end-to-end reproduction from this snapshot alone.
+- Full end-to-end re-run from raw data is blocked by missing LFS objects and external dependencies.
+- In this runtime, `pdflatex` is not available, so final TeX compilation cannot be executed here.
+- `run_paper.sh` fails clearly when Python plotting dependencies (e.g., `matplotlib`) are absent.
+
+## Result claim checks against canonical CSVs
+
+The headline GSM8K claims in abstract/results were checked against means over seeds in
+`artifacts/router_optionB/paper_table_test_full_per_seed.csv`:
+- Fixed B2 vs Confidence B2 accuracy delta matches paper wording.
+- Fixed B3 vs Stability B3 accuracy delta matches paper wording.
+- Oracle reference magnitude matches table-derived values.
+
+No overstated claim requiring unshipped artifacts was introduced.
