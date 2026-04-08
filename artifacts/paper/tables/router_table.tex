@@ -5,7 +5,7 @@
 \renewcommand{\arraystretch}{1.1}
 \begin{tabularx}{\textwidth}{lYYYY}
 \toprule
-Policy (test, mean$\pm$std over seeds) & B1 & B2 & B3 & B4 \\
+Policy (test, mean$\pm$std over seeds, sample std) & B1 & B2 & B3 & B4 \\
 \midrule
 Fixed & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6603$\pm$0.0244 (256$\pm$0, 2.00$\pm$0.00) & 0.6540$\pm$0.0311 (480$\pm$0, 3.00$\pm$0.00) & 0.6527$\pm$0.0209 (800$\pm$0, 4.00$\pm$0.00) \\
 \addlinespace
@@ -15,6 +15,6 @@ Stability (tuned) & 0.6464$\pm$0.0274 (96$\pm$0, 1.00$\pm$0.00) & 0.6710$\pm$0.0
 Oracle & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) & 0.8010$\pm$0.0259 (273$\pm$20, 1.80$\pm$0.08) \\
 \bottomrule
 \end{tabularx}
-\caption{Test performance across compute tiers (accuracy; mean tokens and mean steps in parentheses). Values are mean$\pm$std over three split seeds.}
+\caption{Test performance across compute tiers (accuracy; mean tokens and mean steps in parentheses). Values are mean$\pm$std over three split seeds (sample std).}
 \label{tab:main_results_allbudgets}
 \end{table*}

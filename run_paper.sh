@@ -4,6 +4,22 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${ROOT_DIR}"
 
+PAPER_CONFIG="configs/paper.yaml"
+if [ "${1:-}" = "--config" ]; then
+  if [ -z "${2:-}" ]; then
+    echo "[ERROR] --config requires a path argument."
+    exit 1
+  fi
+  PAPER_CONFIG="$2"
+  shift 2
+fi
+
+if [ "$#" -gt 0 ]; then
+  echo "[ERROR] Unknown arguments: $*"
+  echo "Usage: bash run_paper.sh [--config <path>]"
+  exit 1
+fi
+
 if [ -f requirements.paper.txt ]; then
   echo "[INFO] Installing paper requirements from requirements.paper.txt"
   if ! pip install -r requirements.paper.txt; then
@@ -13,7 +29,7 @@ if [ -f requirements.paper.txt ]; then
 fi
 
 echo "[INFO] Regenerating paper figures/tables from canonical artifacts"
-if ! python scripts/make_paper_artifacts.py --config configs/paper.yaml; then
+if ! python scripts/make_paper_artifacts.py --config "${PAPER_CONFIG}"; then
   echo "[ERROR] Failed to generate paper figures/tables."
   echo "        Ensure Python dependencies (e.g., matplotlib, pyyaml, numpy) are installed."
   exit 1
@@ -50,7 +66,6 @@ python scripts/make_router_latex_table.py \
   --label tab:router_boolq \
   --split_label validation \
   --split_filter validation \
-  --legacy_split_aliases test \
   --oracle-single-reference
 
 echo "[INFO] Validating LaTeX dependencies"
