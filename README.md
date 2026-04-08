@@ -8,14 +8,29 @@ To avoid ambiguity across historical folders, the manuscript is synchronized to 
 
 - **Paper entry point:** `main_distilling_revised_v0.tex`
 - **Canonical build entry point:** `run_paper.sh`
-- **Main GSM8K router family:** `artifacts/router_optionB/`
+- **Main GSM8K router family (paper-facing only):** `artifacts/router_optionB/`
+- **Archived GSM8K router intermediates/non-canonical summaries:** `artifacts/router_optionB_legacy/`
 - **BoolQ transfer router family:** `artifacts/router_optionB_boolq/`
 - **Generated paper tables/figures:** `artifacts/paper/tables/`, `artifacts/paper/figures/`
+- **Canonical GSM8K router prediction source:** `results/preds_student_full.jsonl`
 - **Prediction JSONLs used for paper plots:**
   - `results_abl/preds_main_adapter.jsonl`
   - `results_abl/preds_base.jsonl`
 
 Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`) are retained for traceability but are non-canonical for paper claims.
+
+## Quick artifact map (reviewer-friendly)
+
+- **Main GSM8K table (`tab:main_results_allbudgets`)**
+  - Canonical CSV: `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
+  - Canonical TeX table: `artifacts/paper/tables/router_table.tex`
+- **Transfer table (`tab:router_boolq`)**
+  - Canonical CSV: `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`
+  - Canonical TeX table: `artifacts/paper/tables/router_table_boolq.tex`
+- **Main figure (`fig:pareto`)**
+  - Canonical figure: `artifacts/paper/figures/router_pareto_all.pdf`
+- **Canonical reproducibility guide**
+  - `REPRODUCIBILITY.md`
 
 Template-only configs are explicitly named with `.template.yaml` and are not reviewer defaults:
 - `configs/train_student_qlora.template.yaml`
@@ -30,13 +45,16 @@ Template-only configs are explicitly named with `.template.yaml` and are not rev
 
 ### Canonical source inputs for those outputs
 - GSM8K router per-seed CSV: `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
+- GSM8K router compact CSV: `artifacts/router_optionB/paper_table_test_acc_tokens.csv`
+- GSM8K router provenance manifests: `data/router_splits_seeds/manifest.json`, `artifacts/router_optionB/gsm8k_router_manifest.json`
 - BoolQ router per-seed CSV: `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`
 - Anytime prediction JSONLs for reliability/coverage plots:  
   `results_abl/preds_main_adapter.jsonl`, `results_abl/preds_base.jsonl`
 - Paper artifact config: `configs/paper.yaml`
 
 ### Known non-canonical / legacy paths
-- `results/`, `results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`
+- `results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`
+- `artifacts/router_optionB_legacy/` (archived non-canonical GSM8K router summaries/intermediates)
 - `artifacts/legacy_results/` (outputs produced by `run_all_p0_p5.sh`; not paper source-of-truth)
 - Archived dev backups under `archive/legacy_dev_snapshots/`
 
@@ -65,6 +83,12 @@ Use the single canonical script:
 bash run_paper.sh
 ```
 
+To rebuild the GSM8K router artifacts from the canonical prediction source before paper generation:
+
+```bash
+bash run_canonical_router_pipeline.sh
+```
+
 Optional explicit config (equivalent canonical behavior):
 
 ```bash
@@ -77,6 +101,12 @@ bash run_paper.sh --config configs/paper.yaml
 3. Router table regeneration:
    - GSM8K: `artifacts/router_optionB/paper_table_test_full_per_seed.csv` -> `artifacts/paper/tables/router_table.tex`
    - BoolQ: `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv` -> `artifacts/paper/tables/router_table_boolq.tex`
+
+For full GSM8K router repro from canonical predictions, run first:
+```bash
+python scripts/make_router_splits.py --source results/preds_student_full.jsonl --out_root data/router_splits_seeds --seeds 0,1,2 --manifest data/router_splits_seeds/manifest.json
+python scripts/run_router_optionB_repro.py --out_dir artifacts/router_optionB --seeds 0,1,2
+```
 4. LaTeX asset validation (`\input` + `\includegraphics`) via `scripts/check_paper_assets.py`.
 5. LaTeX compile only if `pdflatex` is available.
 
@@ -118,6 +148,8 @@ bash run_paper.sh
 - GSM8K compute-matched routing table in paper (`tab:main_results_allbudgets`) is loaded from:
   - `artifacts/paper/tables/router_table.tex` (generated)
   - source CSV: `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
+  - canonical prediction source: `results/preds_student_full.jsonl`
+  - split/artifact manifests: `data/router_splits_seeds/manifest.json`, `artifacts/router_optionB/gsm8k_router_manifest.json`
 - BoolQ transfer table (`tab:router_boolq`) is loaded from:
   - `artifacts/paper/tables/router_table_boolq.tex` (generated)
   - source CSV: `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`

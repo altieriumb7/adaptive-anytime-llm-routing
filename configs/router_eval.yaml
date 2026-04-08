@@ -1,8 +1,9 @@
-# Template: router evaluation
+# Template (non-paper default): single-split router evaluation.
+# Paper-facing GSM8K tables use scripts/run_router_optionB_repro.py over seed{0,1,2}.
 script: scripts/eval_depth_router.py
 args:
-  dev_jsonl: data/router_splits/dev_enriched.jsonl
-  test_jsonl: data/router_splits/test_enriched.jsonl
+  dev_jsonl: data/router_splits/dev.jsonl
+  test_jsonl: data/router_splits/test.jsonl
   sweep_dir: artifacts/router_sweep
   out_dir: artifacts/router_eval
   calibrator: null

@@ -1,6 +1,7 @@
-# Template: sweep thresholds (router tuning)
+# Template (non-paper default): sweep thresholds (router tuning).
+# Paper-facing GSM8K routing uses compute-matched Option-B evaluation over seeded splits.
 script: scripts/sweep_conf_thresholds.py
 args:
-  data_jsonl: data/router_splits/dev_enriched.jsonl
+  data_jsonl: data/router_splits/dev.jsonl
   out_dir: artifacts/router_sweep
   calibrator: null

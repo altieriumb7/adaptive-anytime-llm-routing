@@ -1,12 +1,14 @@
-# TEMPLATE ONLY (non-runnable as-is): run eval_anytime from YAML.
+# TEMPLATE ONLY (non-paper, non-runnable as-is): run eval_anytime from YAML.
 # Copy this file to a local config and fill in real values before use.
+# Paper-facing GSM8K router results are reproduced via run_canonical_router_pipeline.sh.
 script: scripts/eval_anytime.py
 args:
   dataset: gsm8k
   split: test
   max_examples: 200
   budgets: "1,2,3,4"
-  max_new_tokens: "96,192,384,800"
+  # Paper-aligned budget token caps used by bundled GSM8K router artifacts.
+  max_new_tokens: "96,160,224,320"
   base_model: YOUR_BASE_MODEL
   adapter_dir: null
   save_jsonl: artifacts/legacy_results/preds_main_adapter.jsonl

@@ -1,7 +1,8 @@
-# Template: fit per-budget confidence calibrator
+# Template (non-paper default): fit per-budget confidence calibrator for one split seed.
+# For paper-facing GSM8K router results, use scripts/run_router_optionB_repro.py.
 script: scripts/fit_conf_calibrator.py
 args:
-  in: data/router_splits/dev.jsonl
-  out: artifacts/calibration/platt_dev.json
+  in: data/router_splits_seeds/seed0/dev.jsonl
+  out: artifacts/calibration/platt_seed0.json
   method: platt
   min_points: 200

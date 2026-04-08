@@ -1,0 +1,13 @@
+candidate,split,split_rows,exact_row_matches,exact_match_rate,core_field_matches,core_match_rate
+results_abl/preds_main_adapter.jsonl,data/router_splits_seeds/seed0/dev.jsonl,4224,0,0.000000,533,0.126184
+results_abl/preds_main_adapter.jsonl,data/router_splits_seeds/seed0/test.jsonl,1052,0,0.000000,151,0.143536
+results_abl/preds_main_adapter.jsonl,data/router_splits_seeds/seed1/dev.jsonl,4224,0,0.000000,546,0.129261
+results_abl/preds_main_adapter.jsonl,data/router_splits_seeds/seed1/test.jsonl,1052,0,0.000000,138,0.131179
+results_abl/preds_main_adapter.jsonl,data/router_splits_seeds/seed2/dev.jsonl,4224,0,0.000000,543,0.128551
+results_abl/preds_main_adapter.jsonl,data/router_splits_seeds/seed2/test.jsonl,1052,0,0.000000,141,0.134030
+results/preds_student_full.jsonl,data/router_splits_seeds/seed0/dev.jsonl,4224,4224,1.000000,4224,1.000000
+results/preds_student_full.jsonl,data/router_splits_seeds/seed0/test.jsonl,1052,1052,1.000000,1052,1.000000
+results/preds_student_full.jsonl,data/router_splits_seeds/seed1/dev.jsonl,4224,4224,1.000000,4224,1.000000
+results/preds_student_full.jsonl,data/router_splits_seeds/seed1/test.jsonl,1052,1052,1.000000,1052,1.000000
+results/preds_student_full.jsonl,data/router_splits_seeds/seed2/dev.jsonl,4224,4224,1.000000,4224,1.000000
+results/preds_student_full.jsonl,data/router_splits_seeds/seed2/test.jsonl,1052,1052,1.000000,1052,1.000000
