@@ -1,0 +1,45 @@
+{
+  "created_at_utc": "2026-04-08T22:57:58.784307+00:00",
+  "manifest_schema_version": "1.1",
+  "generator_script": "run_canonical_router_pipeline.sh",
+  "source_file_path": "results/preds_student_full.jsonl",
+  "source_sha256": "4848f79fd270a90e4cb7c1785feb74d290e0ecb5f9f26f846eb96adfe8caacae",
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "metric_names": [
+    "acc",
+    "mean_tokens",
+    "mean_steps"
+  ],
+  "canonical_outputs": [
+    {
+      "path": "artifacts/router_optionB/paper_table_test_full_per_seed.csv",
+      "kind": "router_long_csv",
+      "sha256": "232b6503e3a9f470c6240c033126290f60a2fccdf16b50e44721785b3720b6a0"
+    },
+    {
+      "path": "artifacts/router_optionB/paper_table_test_acc_tokens.csv",
+      "kind": "router_compact_csv",
+      "sha256": "0c03e173668ebba5ed8f30eae8ad561e64a3a621860739611755039006de15c0"
+    },
+    {
+      "path": "artifacts/paper/tables/router_table.tex",
+      "kind": "paper_table_tex",
+      "sha256": "f63a432efa63f43479021b3d79076309a84aecf9ab564c7ead1624743cb371cd"
+    },
+    {
+      "path": "data/router_splits_seeds/manifest.json",
+      "kind": "split_manifest",
+      "sha256": "9d8f145992134e5634c006ad1eee20719295da9729f0cf57c9a83948c318d0ea"
+    }
+  ],
+  "precomputed_inputs": [
+    "results/preds_student_full.jsonl",
+    "artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv",
+    "results_abl/preds_main_adapter.jsonl",
+    "results_abl/preds_base.jsonl"
+  ]
+}
