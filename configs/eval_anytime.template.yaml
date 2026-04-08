@@ -1,4 +1,5 @@
-# Template: run eval_anytime from YAML
+# TEMPLATE ONLY (non-runnable as-is): run eval_anytime from YAML.
+# Copy this file to a local config and fill in real values before use.
 script: scripts/eval_anytime.py
 args:
   dataset: gsm8k
@@ -8,5 +9,5 @@ args:
   max_new_tokens: "96,192,384,800"
   base_model: YOUR_BASE_MODEL
   adapter_dir: null
-  save_jsonl: results/preds_main_adapter.jsonl
+  save_jsonl: artifacts/legacy_results/preds_main_adapter.jsonl
   calibrator: null

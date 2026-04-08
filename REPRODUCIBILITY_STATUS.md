@@ -1,52 +1,33 @@
 # REPRODUCIBILITY_STATUS
 
-## As-a-shipped reproducibility classification
+## Release-facing reproducibility scope
 
-### Reproducible from this checkout (artifact-level)
+This repository is a **paper artifact with canonical bundled outputs**, not a claim of full from-scratch experimental reproducibility.
 
-- Regenerating router LaTeX tables from canonical CSVs:
+### What is reproducible from bundled canonical artifacts
+- Router LaTeX tables can be regenerated from canonical per-seed CSVs:
   - `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
   - `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`
-- Validating all `\input` and `\includegraphics` references in `main_distilling_revised_v0.tex`.
-- Rebuilding paper-side tables/figures **if plotting dependencies are installed**.
+- Paper-side table/figure assets can be regenerated with:
+  - `python scripts/make_paper_artifacts.py --config configs/paper.yaml`
+  - `bash run_paper.sh`
+- LaTeX asset references are checkable via:
+  - `python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex`
 
-### Not fully reproducible from this checkout alone (end-to-end)
+### What is not fully reproducible from this checkout alone
+End-to-end regeneration from raw trajectory generation + training depends on assets not bundled directly in this snapshot:
+- Git LFS payloads (some split/result files are pointers only)
+- Remote model availability/checkpoints
+- Optional API-backed generation workflows
 
-Full regeneration from raw data/training is incomplete because required files are LFS pointers and external dependencies are not bundled.
+## Canonical paper path
+- Canonical entrypoint: `main_distilling_revised_v0.tex`
+- Canonical build flow: `run_paper.sh` (or `run_paper.sh --config configs/paper.yaml`)
+- Canonical paper inputs are documented in `README.md` (Reviewer manifest section)
 
-Detected LFS pointer files (13):
-- `data/router_splits_boolq_seeds/seed0/dev.jsonl`
-- `data/router_splits_boolq_seeds/seed0/test.jsonl`
-- `data/router_splits_boolq_seeds/seed1/dev.jsonl`
-- `data/router_splits_boolq_seeds/seed1/test.jsonl`
-- `data/router_splits_boolq_seeds/seed2/dev.jsonl`
-- `data/router_splits_boolq_seeds/seed2/test.jsonl`
-- `data/router_svamp/dev.jsonl`
-- `data/router_svamp/test.jsonl`
-- `results/preds_base_boolq.jsonl`
-- `results/preds_base_boolq_reparsed.jsonl`
-- `results/preds_base_boolq_reparsed2.jsonl`
-- `results_main_full/preds_base_full.jsonl`
-- `results_main_full/preds_main_adapter_full.jsonl`
+## Environment note (this runtime)
+In this sandbox (2026-04-08 UTC), package installation for `matplotlib` is blocked by proxy restrictions, so figure/table regeneration commands that import matplotlib fail here even though the repo workflow is correct.
 
-## Canonical reproducibility workflow
-
-```bash
-bash run_paper.sh
-```
-
-This is the only authoritative paper-build path and is designed to fail clearly when required inputs/dependencies are missing.
-
-## Validation results from this runtime
-
-- `python -m compileall scripts src` passed.
-- Router table regeneration commands passed.
-- `python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex` passed.
-- `bash run_paper.sh` failed because `matplotlib` is unavailable and could not be installed in this environment.
-- `pdflatex` command not found, so TeX compilation could not be executed in this runtime.
-
-## Honest interpretation for submission
-
-- The artifact is synchronized at the paper/table/figure reference level.
-- The shipped repo supports conservative paper-asset regeneration from canonical bundled artifacts.
-- Complete from-scratch experiment regeneration requires external assets and remains explicitly out of scope for this snapshot.
+## Honest interpretation
+- **Supported:** paper-asset regeneration from canonical bundled artifacts when required local dependencies are available.
+- **Not claimed:** complete end-to-end reproduction from raw data in an offline/no-LFS/no-remote-assets environment.

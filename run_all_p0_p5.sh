@@ -26,7 +26,7 @@ export ROUTER_TEST_FRAC ROUTER_SEEDS
 #############################################
 # LOGGING
 #############################################
-mkdir -p logs results artifacts
+mkdir -p logs results artifacts artifacts/legacy_results
 exec > >(tee -a logs/run_p0_p5_$(date +%Y%m%d_%H%M%S).log) 2>&1
 
 echo "== Running from repo root: $(pwd)"
@@ -93,10 +93,12 @@ else
 fi
 
 #############################################
-# P4) Anytime eval (BASE + STUDENT) + JSONL dumps (for paper)
+# P4) Anytime eval (BASE + STUDENT) + JSONL dumps (legacy/non-canonical)
 #############################################
-BASE_PREDS="results/preds_base_full.jsonl"
-STUDENT_PREDS="results/preds_student_full.jsonl"
+LEGACY_RESULTS_DIR="${LEGACY_RESULTS_DIR:-artifacts/legacy_results}"
+mkdir -p "${LEGACY_RESULTS_DIR}"
+BASE_PREDS="${LEGACY_RESULTS_DIR}/preds_base_full.jsonl"
+STUDENT_PREDS="${LEGACY_RESULTS_DIR}/preds_student_full.jsonl"
 
 if [ -f "${BASE_PREDS}" ]; then
   echo "== P4: base preds already exist: ${BASE_PREDS} (skipping)"
@@ -186,22 +188,11 @@ python scripts/run_router_optionB_repro.py
 #############################################
 # P5) Paper artifacts (figures + tables)
 #############################################
-echo "== P5: updating configs/paper.yaml to point to our preds files"
-python - <<'PY'
-import yaml, pathlib
-p = pathlib.Path("configs/paper.yaml")
-cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
-cfg["router_csv"] = "artifacts/router_optionB/paper_table_test_acc_tokens.csv"
-cfg["models"] = [
-  {"name":"student", "preds_jsonl":"results/preds_student_full.jsonl"},
-  {"name":"base",    "preds_jsonl":"results/preds_base_full.jsonl"},
-]
-p.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-print("updated configs/paper.yaml")
-PY
-
+echo "== P5: using canonical paper config without in-place mutation"
+echo "==     canonical preds remain results_abl/{preds_main_adapter,preds_base}.jsonl"
+echo "==     P4 outputs are legacy and stored in ${LEGACY_RESULTS_DIR}"
 echo "== P5: generating paper figures/tables -> artifacts/paper/"
-bash run_paper.sh
+bash run_paper.sh --config configs/paper.yaml
 
 # Generate a LaTeX router table for inclusion in the paper
 python scripts/make_router_latex_table.py \
@@ -213,8 +204,8 @@ echo "========================================"
 echo "DONE."
 echo "Key outputs:"
 echo " - Student adapter: ${STUDENT_DIR}"
-echo " - Base preds:      ${BASE_PREDS}"
-echo " - Student preds:   ${STUDENT_PREDS}"
+echo " - Base preds (legacy/non-canonical):    ${BASE_PREDS}"
+echo " - Student preds (legacy/non-canonical): ${STUDENT_PREDS}"
 echo " - Calibrators:     artifacts/calibration/platt_seed{0,1,2}.json"
 echo " - Router table:    artifacts/router_optionB/paper_table_test_acc_tokens.csv"
 echo " - Paper artifacts: artifacts/paper/figures  and  artifacts/paper/tables"

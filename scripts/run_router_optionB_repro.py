@@ -11,6 +11,9 @@ Outputs:
   - <out_dir>/seed{seed}/summary.csv (dev+test rows)
   - <out_dir>/paper_table_test_full_per_seed.csv (test rows, long form)
   - <out_dir>/paper_table_test_acc_tokens.csv (compact)
+
+Std-dev convention:
+  - Cross-seed summaries use sample standard deviation (statistics.stdev, ddof=1).
 """
 
 from __future__ import annotations
@@ -19,11 +22,20 @@ import argparse
 import csv
 import json
 import os
+import statistics
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import scripts.eval_depth_router as edr
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+try:
+    import scripts.eval_depth_router as edr
+except ModuleNotFoundError:
+    import eval_depth_router as edr
 from src.calibration.conf_calibrator import ConfidenceCalibrator
 
 
@@ -31,6 +43,11 @@ DEFAULT_OUTDIR = "artifacts/router_optionB"
 DEFAULT_SEEDS = [int(s) for s in os.environ.get("ROUTER_SEEDS", "0 1 2").replace(",", " ").split()]
 TARGETS = [1, 2, 3, 4]  # B1..B4
 T_MAX = 4              # anytime trajectory length
+
+
+def sample_std(xs: List[float]) -> float:
+    """Sample standard deviation (ddof=1); 0.0 for degenerate n<=1."""
+    return float(statistics.stdev(xs)) if len(xs) > 1 else 0.0
 
 
 def make_threshold_grid() -> List[float]:
@@ -414,7 +431,6 @@ def run_router(
 
     # Save compact test table with mean over seeds (acc/tokens)
     from collections import defaultdict
-    import statistics
 
     group = defaultdict(list)
     for r in all_seed_rows:
@@ -430,11 +446,11 @@ def run_router(
                 "policy": policy,
                 "budget_tag": budget_tag,
                 "acc_mean": statistics.mean(accs),
-                "acc_std": statistics.pstdev(accs) if len(accs) > 1 else 0.0,
+                "acc_std": sample_std(accs),
                 "tokens_mean": statistics.mean(toks),
-                "tokens_std": statistics.pstdev(toks) if len(toks) > 1 else 0.0,
+                "tokens_std": sample_std(toks),
                 "steps_mean": statistics.mean(stps),
-                "steps_std": statistics.pstdev(stps) if len(stps) > 1 else 0.0,
+                "steps_std": sample_std(stps),
             }
         )
 

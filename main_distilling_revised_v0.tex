@@ -97,7 +97,7 @@ Routers are evaluated under a compute-matched protocol. Compute tiers B1--B4 are
 % ======================================================================
 \section{Experimental Setup}
 \paragraph{Datasets.}
-Main results are reported on GSM8K~\cite{cobbe2021gsm8k} test (1,319 problems). Transfer results are reported on BoolQ~\cite{clark2019boolq} \emph{validation}. The canonical BoolQ paper artifact is the validation table \texttt{artifacts/router\_optionB\_boolq/paper\_table\_validation\_full\_per\_seed.csv}. That CSV may contain historical \texttt{split=test} row labels from older scripts, but these rows correspond to BoolQ validation in this artifact and are treated as validation during table generation.
+Main results are reported on GSM8K~\cite{cobbe2021gsm8k} test (1,319 problems). Transfer results are reported on BoolQ~\cite{clark2019boolq} \emph{validation}. The canonical BoolQ paper artifact is \texttt{artifacts/router\_optionB\_boolq/paper\_table\_validation\_full\_per\_seed.csv}, which uses validation split labels consistently.
 
 \paragraph{Splits and seeds.}
 Router tuning uses three development/test partitions built with seeds $\{0,1,2\}$ and a test fraction of 0.2. Reported routing results are mean$\pm$std across these three seeds.

@@ -17,6 +17,35 @@ To avoid ambiguity across historical folders, the manuscript is synchronized to 
 
 Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`) are retained for traceability but are non-canonical for paper claims.
 
+Template-only configs are explicitly named with `.template.yaml` and are not reviewer defaults:
+- `configs/train_student_qlora.template.yaml`
+- `configs/eval_anytime.template.yaml`
+
+## Reviewer manifest (canonical vs legacy)
+
+### Canonical paper outputs
+- `artifacts/paper/tables/router_table.tex` (GSM8K router table, paper `tab:main_results_allbudgets`)
+- `artifacts/paper/tables/router_table_boolq.tex` (BoolQ transfer table, paper `tab:router_boolq`)
+- `artifacts/paper/figures/router_pareto_all.pdf` (paper `fig:pareto`)
+
+### Canonical source inputs for those outputs
+- GSM8K router per-seed CSV: `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
+- BoolQ router per-seed CSV: `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`
+- Anytime prediction JSONLs for reliability/coverage plots:  
+  `results_abl/preds_main_adapter.jsonl`, `results_abl/preds_base.jsonl`
+- Paper artifact config: `configs/paper.yaml`
+
+### Known non-canonical / legacy paths
+- `results/`, `results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`
+- `artifacts/legacy_results/` (outputs produced by `run_all_p0_p5.sh`; not paper source-of-truth)
+- Archived dev backups under `archive/legacy_dev_snapshots/`
+
+### External dependencies not bundled
+- Python plotting stack from `requirements.paper.txt` (e.g., `matplotlib`) for regenerating figures/tables.
+- Optional LaTeX toolchain (`pdflatex`) for PDF compilation.
+- Git LFS payloads for some data/result files needed by full end-to-end reruns.
+- Optional remote APIs/models for full trajectory generation/training workflows.
+
 ## Environment setup
 
 ```bash
@@ -34,6 +63,12 @@ Use the single canonical script:
 
 ```bash
 bash run_paper.sh
+```
+
+Optional explicit config (equivalent canonical behavior):
+
+```bash
+bash run_paper.sh --config configs/paper.yaml
 ```
 
 `run_paper.sh` performs:
@@ -57,11 +92,26 @@ python scripts/make_router_latex_table.py \
   --in_csv artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv \
   --out_tex artifacts/paper/tables/router_table_boolq.tex \
   --label tab:router_boolq --split_label validation --split_filter validation \
-  --legacy_split_aliases test --oracle-single-reference
+  --oracle-single-reference
 python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex
 pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex
 pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex
 ```
+
+### Reviewer-safe minimal checks
+
+```bash
+python -m compileall scripts src
+python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex
+python scripts/make_paper_artifacts.py --config configs/paper.yaml
+bash run_paper.sh
+```
+
+## Legacy/non-canonical pipeline outputs
+
+- `run_all_p0_p5.sh` now writes newly generated end-to-end eval JSONLs to `artifacts/legacy_results/`.
+- These files are intentionally **non-canonical for manuscript claims** unless manually promoted after independent verification.
+- The script no longer rewrites `configs/paper.yaml`; canonical paper generation always reads the checked-in config.
 
 ## Main-result provenance (paper claims -> files)
 
@@ -92,5 +142,4 @@ Therefore, this artifact should be interpreted as:
 ## BoolQ split semantics (canonical)
 
 - Canonical source is named `paper_table_validation_full_per_seed.csv` and is treated as **validation** in the manuscript.
-- Historical rows may carry `split=test` labels from older exports; canonical generation handles this with:
-  - `--split_filter validation --legacy_split_aliases test`.
+- Canonical exports now use `split=validation` directly in the CSV rows, so reviewer-facing generation no longer relies on legacy split aliases.

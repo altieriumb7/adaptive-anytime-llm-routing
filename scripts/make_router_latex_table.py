@@ -22,6 +22,7 @@ from typing import Dict, List, Tuple
 
 
 def mean_std(xs: List[float]) -> Tuple[float, float]:
+    """Return mean and sample std-dev (ddof=1) for cross-seed reporting."""
     if not xs:
         return float('nan'), float('nan')
     if len(xs) == 1:
@@ -104,7 +105,7 @@ def main() -> None:
     lines.append('\\toprule')
     split_label = args.split_label
     oracle_single_reference = (not args.oracle_everywhere) if args.oracle_single_reference is None else args.oracle_single_reference
-    lines.append(f'Policy ({split_label}, mean$\\pm$std over seeds) & ' + ' & '.join(budgets) + ' \\\\')
+    lines.append(f'Policy ({split_label}, mean$\\pm$std over seeds, sample std) & ' + ' & '.join(budgets) + ' \\\\')
     lines.append('\\midrule')
 
     for pol in policies:
@@ -129,7 +130,7 @@ def main() -> None:
         caption = (
             f'{split_label.capitalize()} performance across compute tiers '
             '(accuracy; mean tokens and mean steps in parentheses). '
-            'Values are mean$\\pm$std over three split seeds.'
+            'Values are mean$\\pm$std over three split seeds (sample std).'
         )
     lines.append(f"\\caption{{{caption}}}")
     lines.append(f"\\label{{{args.label}}}")

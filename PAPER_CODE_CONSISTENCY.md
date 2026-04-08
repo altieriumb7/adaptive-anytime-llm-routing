@@ -20,7 +20,7 @@ This artifact now uses one consistent contract:
 
 2. **BoolQ split semantics**
    - Paper states BoolQ transfer as validation.
-   - Table build enforces `--split_filter validation` with `--legacy_split_aliases test` to handle historical labels conservatively.
+   - Canonical BoolQ per-seed CSV uses `split=validation` directly, and table build uses `--split_filter validation`.
 
 3. **Paper references are generated artifacts, not hand-copied tables**
    - Main and BoolQ results are injected via `\input{...}` files under `artifacts/paper/tables/`.
@@ -31,8 +31,8 @@ This artifact now uses one consistent contract:
 ## Audited limitations (explicitly documented, not hidden)
 
 - Full end-to-end re-run from raw data is blocked by missing LFS objects and external dependencies.
-- In this runtime, `pdflatex` is not available, so final TeX compilation cannot be executed here.
-- `run_paper.sh` fails clearly when Python plotting dependencies (e.g., `matplotlib`) are absent.
+- Final PDF compilation requires a local `pdflatex` installation.
+- Paper artifact regeneration requires plotting dependencies from `requirements.paper.txt` (e.g., `matplotlib`).
 
 ## Result claim checks against canonical CSVs
 

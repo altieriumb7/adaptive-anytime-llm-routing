@@ -1,4 +1,5 @@
-# Template: train student QLoRA
+# TEMPLATE ONLY (non-runnable as-is): train student QLoRA.
+# Copy this file to a local config and fill in real values before use.
 script: scripts/train_student_qlora.py
 args:
   train_jsonl: data/sft_gsm8k_anytime_v2_monotone.jsonl
