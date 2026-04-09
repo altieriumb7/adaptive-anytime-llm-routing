@@ -1,0 +1,2 @@
+source_jsonl,total_trajectories,answer_flip_trajectories,answer_flip_rate,correct_to_incorrect_regression_trajectories,correct_to_incorrect_regression_rate
+data/anytime_gsm8k_train_v2.jsonl,7473,460,0.061555,47,0.006289

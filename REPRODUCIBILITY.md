@@ -73,6 +73,19 @@ Typical missing/blocking categories:
 4. BoolQ/transfer regeneration may require additional non-bundled artifacts depending on LFS availability.
 5. Model-seed retraining variance is not characterized in the bundled evaluation outputs.
 
+## BoolQ transfer reproducibility status (single source of truth)
+
+- **Paper-facing BoolQ table is artifact-level reproducible** from bundled canonical CSV:
+  - `artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv`
+- **BoolQ split-level regeneration is conditional** on resolving LFS placeholders under
+  `data/router_splits_boolq_seeds/seed{0,1,2}/{dev,test}.jsonl`.
+
+Quick check for LFS placeholders:
+```bash
+sed -n '1,3p' data/router_splits_boolq_seeds/seed0/dev.jsonl
+```
+If the file begins with `version https://git-lfs.github.com/spec/v1`, fetch LFS payloads before attempting split-level BoolQ reruns.
+
 ## Canonical vs archived directories
 
 - Canonical GSM8K router outputs: `artifacts/router_optionB/`
