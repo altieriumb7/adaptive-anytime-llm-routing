@@ -1,13 +1,42 @@
 {
-  "created_at_utc": "2026-04-08T22:57:58.784307+00:00",
-  "manifest_schema_version": "1.1",
-  "generator_script": "run_canonical_router_pipeline.sh",
+  "created_at_utc": "2026-04-09T21:04:01.854308+00:00",
+  "manifest_schema_version": "1.2",
+  "generator_script": "scripts/refresh_canonical_provenance.py",
   "source_file_path": "results/preds_student_full.jsonl",
   "source_sha256": "4848f79fd270a90e4cb7c1785feb74d290e0ecb5f9f26f846eb96adfe8caacae",
   "seeds": [
     0,
     1,
     2
+  ],
+  "split_counts": {
+    "source_rows": 5276,
+    "source_examples": 1319,
+    "dev_examples_per_seed": 1056,
+    "test_examples_per_seed": 263
+  },
+  "per_seed_counts": [
+    {
+      "seed": 0,
+      "dev_rows": 4224,
+      "dev_examples": 1056,
+      "test_rows": 1052,
+      "test_examples": 263
+    },
+    {
+      "seed": 1,
+      "dev_rows": 4224,
+      "dev_examples": 1056,
+      "test_rows": 1052,
+      "test_examples": 263
+    },
+    {
+      "seed": 2,
+      "dev_rows": 4224,
+      "dev_examples": 1056,
+      "test_rows": 1052,
+      "test_examples": 263
+    }
   ],
   "metric_names": [
     "acc",
@@ -33,13 +62,22 @@
     {
       "path": "data/router_splits_seeds/manifest.json",
       "kind": "split_manifest",
-      "sha256": "9d8f145992134e5634c006ad1eee20719295da9729f0cf57c9a83948c318d0ea"
+      "sha256": "7bb5c856cb5b0924683f2a0a4fa69faa3633d4b32fb125975afd0aa2ccd43b3e"
     }
   ],
-  "precomputed_inputs": [
-    "results/preds_student_full.jsonl",
-    "artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv",
-    "results_abl/preds_main_adapter.jsonl",
-    "results_abl/preds_base.jsonl"
-  ]
+  "canonical_sources": {
+    "gsm8k_router_source": "results/preds_student_full.jsonl",
+    "anytime_plot_sources": [
+      "results_abl/preds_main_adapter.jsonl",
+      "results_abl/preds_base.jsonl"
+    ],
+    "boolq_transfer_source": "artifacts/router_optionB_boolq/paper_table_validation_full_per_seed.csv"
+  },
+  "reproducibility_scope": {
+    "artifact_level_reproducible": [
+      "router tables from canonical CSVs",
+      "paper figures/tables from bundled artifacts"
+    ],
+    "raw_data_end_to_end": "partial (depends on external models/APIs/LFS payloads)"
+  }
 }

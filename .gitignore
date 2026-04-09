@@ -24,3 +24,6 @@
 **/cache/
 **/.venv/
 **/venv/
+# IDE / local editor state
+.idea/
+.vscode/

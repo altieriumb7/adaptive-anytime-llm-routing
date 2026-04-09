@@ -2,6 +2,6 @@
 # Copy this file to a local config and fill in real values before use.
 script: scripts/train_student_qlora.py
 args:
-  train_jsonl: data/sft_gsm8k_anytime_v2_monotone.jsonl
-  output_dir: artifacts/student_anytime_monotone
+  train_jsonl: data/sft_gsm8k_anytime_v2.jsonl
+  output_dir: artifacts/student_anytime_template_run
   base_model: YOUR_BASE_MODEL

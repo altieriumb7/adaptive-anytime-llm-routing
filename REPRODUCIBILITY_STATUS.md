@@ -2,7 +2,7 @@
 
 ## Release-facing reproducibility scope
 
-This repository is a **paper artifact with canonical bundled outputs**, not a claim of full from-scratch experimental reproducibility.
+This repository is a **paper artifact with canonical bundled outputs**, not a claim of full from-scratch experimental reproducibility or full model-seed variance characterization.
 
 ### What is reproducible from bundled canonical artifacts
 - Router LaTeX tables can be regenerated from canonical per-seed CSVs:
@@ -19,6 +19,7 @@ End-to-end regeneration from raw trajectory generation + training depends on ass
 - Git LFS payloads (some split/result files are pointers only)
 - Remote model availability/checkpoints
 - Optional API-backed generation workflows
+- BoolQ transfer inputs that may be incomplete without LFS payload resolution in some environments
 
 ## Canonical paper path
 - Canonical entrypoint: `main_distilling_revised_v0.tex`
@@ -30,4 +31,6 @@ In this sandbox (2026-04-08 UTC), package installation for `matplotlib` is block
 
 ## Honest interpretation
 - **Supported:** paper-asset regeneration from canonical bundled artifacts when required local dependencies are available.
+- **Supported:** split-seed router reproducibility (seeded dev/test partitions and compute-matched evaluation).
+- **Not claimed:** model-seed retraining reproducibility/variance estimates for the distilled student.
 - **Not claimed:** complete end-to-end reproduction from raw data in an offline/no-LFS/no-remote-assets environment.

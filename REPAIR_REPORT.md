@@ -28,7 +28,10 @@ This pass focused on release hardening after canonicalization/router fixes:
    - This keeps provenance while removing dev snapshot naming from active top-level paths.
 
 ## Remaining reproducibility limitations (explicit)
+- Reported table uncertainty is split-seed variability (router partition seeds), not model-seed retraining variability.
 - Full from-scratch end-to-end reruns still depend on unbundled assets (Git LFS payloads, remote/base models, optional API workflows).
+- BoolQ transfer reproducibility is partial in this checkout when LFS-backed transfer files are unavailable.
+- Some manuscript claims are intentionally artifact-level claims tied to canonical generated tables/figures rather than raw-data-to-paper reruns.
 - Local environment must provide plotting deps (`matplotlib` via `requirements.paper.txt`) for artifact regeneration.
 - Local LaTeX toolchain (`pdflatex`) is optional but required to build final PDF from `.tex`.
 

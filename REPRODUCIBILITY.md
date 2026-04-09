@@ -19,7 +19,7 @@ bash run_paper.sh
 
 ## Level B — Paper results (canonical GSM8K/BoolQ artifacts)
 
-**Supported:** Partially-to-fully, depending on available local dependencies and non-placeholder data.
+**Supported:** Partially-to-fully, depending on available local dependencies and non-placeholder data. Reported uncertainty here is split-seed variability only.
 
 ### Canonical GSM8K source-of-truth
 - Prediction source: `results/preds_student_full.jsonl`
@@ -68,8 +68,10 @@ Typical missing/blocking categories:
 ## Known limitations (explicit)
 
 1. This artifact is **paper-asset reproducible** from bundled canonical outputs.
-2. End-to-end training/data regeneration is **not guaranteed** in every environment.
-3. BoolQ/transfer regeneration may require additional non-bundled artifacts depending on LFS availability.
+2. Router tables and anytime calibration/coverage figures come from canonical but distinct artifact families; no claim is made that they originate from one row-identical prediction bundle.
+3. End-to-end training/data regeneration is **not guaranteed** in every environment.
+4. BoolQ/transfer regeneration may require additional non-bundled artifacts depending on LFS availability.
+5. Model-seed retraining variance is not characterized in the bundled evaluation outputs.
 
 ## Canonical vs archived directories
 
