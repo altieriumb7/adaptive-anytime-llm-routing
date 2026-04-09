@@ -28,12 +28,12 @@
       "test_path": "data/router_splits_seeds/seed0/test.jsonl",
       "dev": {
         "rows": 4224,
-        "examples": null,
+        "examples": 1056,
         "sha256": "4f38d3748b22fc1f789806bbb6cc215a72e9f3bc85d6892556ba95b0d9d34dd4"
       },
       "test": {
         "rows": 1052,
-        "examples": null,
+        "examples": 263,
         "sha256": "15a42b28250ee76d43b83ddf3b7b9577444018e67426ab0ad90e676eecde6554"
       }
     },
@@ -43,12 +43,12 @@
       "test_path": "data/router_splits_seeds/seed1/test.jsonl",
       "dev": {
         "rows": 4224,
-        "examples": null,
+        "examples": 1056,
         "sha256": "f4525967a62027ee0bb409d83b3813185d927f5083c1647ead0affcd8883a678"
       },
       "test": {
         "rows": 1052,
-        "examples": null,
+        "examples": 263,
         "sha256": "b5db09d8df28967da204ddb13a56c39711db1ccb203ccfd32fc23188e95eab19"
       }
     },
@@ -58,14 +58,15 @@
       "test_path": "data/router_splits_seeds/seed2/test.jsonl",
       "dev": {
         "rows": 4224,
-        "examples": null,
+        "examples": 1056,
         "sha256": "172d2109ff7183a9653709da9763f370dabc79396b62a1ec72aa5ae05918d3d3"
       },
       "test": {
         "rows": 1052,
-        "examples": null,
+        "examples": 263,
         "sha256": "221799d62e691656672ceb090d413d44c012187d3207f8ded150408ddce4ddcc"
       }
     }
-  ]
+  ],
+  "updated_at_utc": "2026-04-09T21:04:01.851000+00:00"
 }

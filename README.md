@@ -156,6 +156,8 @@ bash run_paper.sh
 - Pareto plot (`fig:pareto`) is loaded from:
   - `artifacts/paper/figures/router_pareto_all.pdf`
   - produced by `scripts/make_paper_artifacts.py` from `configs/paper.yaml`.
+- Bundle provenance note: anytime calibration/coverage figures are built from `results_abl/*.jsonl`, while compute-matched routing tables are built from `artifacts/router_optionB/*.csv`; these are both canonical but not represented as one row-identical prediction bundle (see `artifacts/paper/tables/provenance_rowmatch_audit.csv`).
+- Canonical metadata refresh (no heavy regeneration): `python scripts/refresh_canonical_provenance.py` updates `data/router_splits_seeds/manifest.json` and `artifacts/router_optionB/gsm8k_router_manifest.json`.
 
 ## Reproducibility caveats (truthful limits)
 
@@ -168,10 +170,18 @@ Known LFS placeholders include:
 - `results/preds_base_boolq.jsonl`, `results/preds_base_boolq_reparsed.jsonl`, `results/preds_base_boolq_reparsed2.jsonl`
 
 Therefore, this artifact should be interpreted as:
-- **paper-asset reproducible from bundled canonical artifacts**, and
+- **paper-asset reproducible from bundled canonical artifacts**,
+- **split-seed reproducible** for router evaluation (seeds 0/1/2), and
 - **partially reproducible end-to-end** when missing LFS/data/checkpoints are unavailable.
+
+Important variance scope: reported uncertainty in router tables is across split seeds only; model-seed retraining variance is not claimed in this snapshot.
 
 ## BoolQ split semantics (canonical)
 
 - Canonical source is named `paper_table_validation_full_per_seed.csv` and is treated as **validation** in the manuscript.
 - Canonical exports now use `split=validation` directly in the CSV rows, so reviewer-facing generation no longer relies on legacy split aliases.
+
+## Teacher trajectory default (documented)
+
+- OpenAI teacher backend defaults to `gpt-4o-mini` in `src/teachers/openai_teacher.py` and in `scripts/generate_gsm8k_trajectories.py --openai_model`.
+- Re-running trajectory generation with a different teacher model is expected to change downstream distilled behavior.
