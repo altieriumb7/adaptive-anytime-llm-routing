@@ -53,6 +53,18 @@ python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex
 - `artifacts/paper/tables/router_table.tex`
 - `artifacts/paper/tables/router_table_boolq.tex`
 
+### Lightweight statistical support (paired split-seed bootstrap)
+
+A small-scope paired uncertainty artifact can be regenerated directly from the canonical per-seed GSM8K table:
+
+```bash
+python scripts/make_router_paired_bootstrap.py \
+  --in_csv artifacts/router_optionB/paper_table_test_full_per_seed.csv \
+  --out_csv artifacts/paper/tables/router_paired_bootstrap_gsm8k.csv
+```
+
+This provides paired routed-vs-fixed deltas with bootstrap CIs over split seeds only (n=3). It is intentionally narrow and does **not** estimate retraining/model-seed variance.
+
 ## Level C — Full training/regeneration (student training + transfer data refresh)
 
 **Supported:** Partial in this bundled snapshot.
@@ -70,8 +82,8 @@ Typical missing/blocking categories:
 1. This artifact is **paper-asset reproducible** from bundled canonical outputs.
 2. Router tables and anytime calibration/coverage figures come from canonical but distinct artifact families; no claim is made that they originate from one row-identical prediction bundle.
 3. End-to-end training/data regeneration is **not guaranteed** in every environment.
-4. BoolQ/transfer regeneration may require additional non-bundled artifacts depending on LFS availability.
-5. Model-seed retraining variance is not characterized in the bundled evaluation outputs.
+4. BoolQ/transfer regeneration may require additional non-bundled artifacts depending on LFS availability; bundled BoolQ claims are artifact-level unless split payloads are resolved from LFS.
+5. Model-seed retraining variance is not characterized in the bundled evaluation outputs; split-seed resampling is a narrower uncertainty view.
 
 ## BoolQ transfer reproducibility status (single source of truth)
 

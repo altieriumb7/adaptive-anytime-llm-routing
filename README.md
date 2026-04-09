@@ -27,6 +27,8 @@ Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_o
   - Canonical JSONLs: `results_abl/preds_main_adapter.jsonl`, `results_abl/preds_base.jsonl`
 - **GSM8K row-match audit between anytime-vs-router families**
   - Canonical audit CSV: `artifacts/paper/tables/provenance_rowmatch_audit.csv`
+- **GSM8K lightweight paired uncertainty support (split-seed bootstrap)**
+  - Canonical CSV: `artifacts/paper/tables/router_paired_bootstrap_gsm8k.csv`
 - **Main GSM8K table (`tab:main_results_allbudgets`)**
   - Canonical CSV: `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
   - Canonical TeX table: `artifacts/paper/tables/router_table.tex`
@@ -68,6 +70,7 @@ Template-only configs are explicitly named with `.template.yaml` and are not rev
 
 ### Known non-canonical / legacy paths
 - `results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`
+  - See `results_main_full/README_LEGACY.md` for transfer-era placeholder semantics.
 - `artifacts/router_optionB_legacy/` (archived non-canonical GSM8K router summaries/intermediates)
 - `artifacts/legacy_results/` (outputs produced by `run_all_p0_p5.sh`; not paper source-of-truth)
 - Archived dev backups under `archive/legacy_dev_snapshots/`
@@ -138,6 +141,7 @@ python scripts/make_router_latex_table.py \
   --label tab:router_boolq --split_label validation --split_filter validation \
   --oracle-single-reference
 python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex
+python scripts/make_router_paired_bootstrap.py --in_csv artifacts/router_optionB/paper_table_test_full_per_seed.csv --out_csv artifacts/paper/tables/router_paired_bootstrap_gsm8k.csv
 pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex
 pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex
 ```
@@ -171,6 +175,7 @@ bash run_paper.sh
   - `artifacts/paper/figures/router_pareto_all.pdf`
   - produced by `scripts/make_paper_artifacts.py` from `configs/paper.yaml`.
 - Bundle provenance note: anytime calibration/coverage figures are built from `results_abl/*.jsonl`, while compute-matched routing tables are built from `artifacts/router_optionB/*.csv`; these are both canonical but not represented as one row-identical prediction bundle (see `artifacts/paper/tables/provenance_rowmatch_audit.csv`).
+- Lightweight paired uncertainty support for key GSM8K gains is exported to `artifacts/paper/tables/router_paired_bootstrap_gsm8k.csv` from `artifacts/router_optionB/paper_table_test_full_per_seed.csv` via seed-paired bootstrap over split seeds only (`scripts/make_router_paired_bootstrap.py`).
 - Table-level provenance note: GSM8K Table 1 (`tab:anytime_gsm8k`) is sourced from `results_abl/preds_main_adapter.jsonl` and `results_abl/preds_base.jsonl`, while GSM8K router Table 2 (`tab:main_results_allbudgets`) is sourced from the Option-B family rooted at `results/preds_student_full.jsonl`; `artifacts/paper/tables/provenance_rowmatch_audit.csv` is the explicit non-row-identity evidence.
 - Canonical metadata refresh (no heavy regeneration): `python scripts/refresh_canonical_provenance.py` updates `data/router_splits_seeds/manifest.json` and `artifacts/router_optionB/gsm8k_router_manifest.json`.
 
