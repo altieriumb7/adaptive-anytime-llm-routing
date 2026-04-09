@@ -1,7 +1,10 @@
 # Canonical paper artifact generation config.
-# This script regenerates paper-side figures/tables from:
+# This script regenerates paper-side figures/tables from two canonical GSM8K families:
 #   (a) compute-matched router summaries in artifacts/router_optionB
-#   (b) per-budget prediction JSONL files (results_abl/*.jsonl)
+#       (derived from results/preds_student_full.jsonl via router splits)
+#   (b) per-budget anytime/calibration JSONLs in results_abl/*.jsonl
+# The repository does not claim these are one row-identical prediction bundle;
+# see artifacts/paper/tables/provenance_rowmatch_audit.csv.
 
 output_dir: artifacts/paper
 budgets: [1, 2, 3, 4]

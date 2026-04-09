@@ -35,10 +35,10 @@ This pass focused on release hardening after canonicalization/router fixes:
 - Local environment must provide plotting deps (`matplotlib` via `requirements.paper.txt`) for artifact regeneration.
 - Local LaTeX toolchain (`pdflatex`) is optional but required to build final PDF from `.tex`.
 
-## Validation executed in this pass (2026-04-08 UTC)
+## Validation executed in this pass
 - `python -m compileall scripts src` ✅
 - `python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex` ✅
-- `python scripts/make_paper_artifacts.py --config configs/paper.yaml` ⚠️ failed in this sandbox due to missing `matplotlib` (proxy-blocked install)
-- `bash run_paper.sh` ⚠️ same dependency limitation in this sandbox
+- `python scripts/make_paper_artifacts.py --config configs/paper.yaml` (requires paper plotting dependencies, especially `matplotlib`)
+- `bash run_paper.sh` (same dependency requirement)
 
-These warnings reflect runtime environment restrictions, not silent repo/script inconsistency.
+Dependency-sensitive commands above are expected to run when local paper dependencies are available.

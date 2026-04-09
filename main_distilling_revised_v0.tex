@@ -34,7 +34,7 @@
 \begin{abstract}
 Fixed test-time budgets for large language models (LLMs) often allocate too much computation to easy examples and too little to hard ones. This paper studies depth routing for anytime inference when a model produces intermediate answers at increasing budgets. A budget-conditioned anytime model is trained by fine-tuning \texttt{Qwen2.5-Math-1.5B-Instruct} with QLoRA on GSM8K trajectories that contain four budgeted attempts and a self-reported confidence at each attempt (7,473 problems; 29,892 budget-labeled supervised fine-tuning examples). Lightweight stopping policies are then evaluated on the resulting 4-step trajectories without additional student weight updates; confidence-threshold routing additionally uses post-hoc per-split Platt calibration fitted on development data.
 
-A compute-matched evaluation protocol is used: for each tier (B1--B4), adaptive routers are tuned to match the fixed-depth baseline's expected allocated-token compute, using a deterministic two-point mixture when exact matching is not attainable. On GSM8K test over three split seeds, confidence-threshold routing improves accuracy at B2 from 0.6603$\pm$0.0244 to 0.6937$\pm$0.0063 at similar mean allocated tokens (256 vs.\ 260), while stability-based routing improves accuracy at B3 from 0.6540$\pm$0.0311 to 0.6844$\pm$0.0305 (480 vs.\ 484). An oracle stopping reference reaches 0.8010$\pm$0.0259 at 272.9$\pm$15.9 tokens, indicating substantial headroom. Transfer to BoolQ without further fine-tuning is markedly weaker, and self-reported confidence is less effective than on GSM8K.
+A compute-matched evaluation protocol is used: for each tier (B1--B4), adaptive routers are tuned to match the fixed-depth baseline's expected allocated-token compute, using a deterministic two-point mixture when exact matching is not attainable. On GSM8K test over three split seeds, confidence-threshold routing improves accuracy at B2 from 0.6603$\pm$0.0244 to 0.6937$\pm$0.0063 at similar mean allocated tokens (256 vs.\ 260), while stability-based routing improves accuracy at B3 from 0.6540$\pm$0.0311 to 0.6844$\pm$0.0305 (480 vs.\ 484). An oracle stopping reference reaches 0.8010$\pm$0.0259 at 272.9$\pm$19.5 tokens, indicating substantial headroom. Transfer to BoolQ without further fine-tuning is markedly weaker, and self-reported confidence is less effective than on GSM8K.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -113,7 +113,7 @@ Accuracy, mean allocated tokens, and mean stopping step are reported. The paper 
 
 \subsection{Anytime Model Quality on GSM8K}
 \label{sec:anytime-results}
-Before routing, the quality of the underlying trajectories is measured. Table~\ref{tab:anytime_gsm8k} summarizes the unadapted base model and the trained adapter at each budget $t$ on GSM8K test.
+Before routing, the quality of the underlying trajectories is measured. Table~\ref{tab:anytime_gsm8k} summarizes the unadapted base model and the trained adapter at each budget $t$ on GSM8K test. For audit clarity, these anytime rows are computed from \texttt{results\_abl/preds\_base.jsonl} and \texttt{results\_abl/preds\_main\_adapter.jsonl}; they are not the same row bundle used by the Option-B GSM8K router evaluation.
 
 \begin{table}[t]
 \centering
@@ -128,14 +128,14 @@ Base model & 0.0281 & 0.0751 & 0.2487 & 0.5595 \\
 Trained adapter & 0.6505 & 0.7096 & 0.7096 & 0.6869 \\
 \bottomrule
 \end{tabular}
-\caption{Anytime accuracy on GSM8K test at each budget $t$ under strict answer matching.}
+\caption{Anytime accuracy on GSM8K test at each budget $t$ under strict answer matching, computed from \texttt{results\_abl/preds\_base.jsonl} and \texttt{results\_abl/preds\_main\_adapter.jsonl} (not from the Option-B router source bundle).}
 \label{tab:anytime_gsm8k}
 \end{table}
 
-Two properties are important for routing. First, the trained adapter is much stronger than the base model at low budgets. Second, accuracy is not monotone in budget: Acc@2 and Acc@3 exceed Acc@4. This non-monotonicity creates room for routing to improve both efficiency and accuracy. These anytime metrics are computed from the prediction bundle used for paper calibration/coverage figures, while the routing table in Table~\ref{tab:main_results_allbudgets} is sourced from the canonical Option-B router CSVs; the repository does not claim they are the same row-identical bundle.
+Two properties are important for routing. First, the trained adapter is much stronger than the base model at low budgets. Second, accuracy is not monotone in budget: Acc@2 and Acc@3 exceed Acc@4. This non-monotonicity creates room for routing to improve both efficiency and accuracy. Importantly, the anytime rows in Table~\ref{tab:anytime_gsm8k} come from the \texttt{results\_abl/*} family, while Table~\ref{tab:main_results_allbudgets} is computed from \texttt{results/preds\_student\_full.jsonl} $\rightarrow$ \texttt{data/router\_splits\_seeds/manifest.json} $\rightarrow$ \texttt{artifacts/router\_optionB/*.csv}; \texttt{artifacts/paper/tables/provenance\_rowmatch\_audit.csv} documents that these families are not row-identical.
 
 \subsection{Compute-Matched Routing on GSM8K}
-Table~\ref{tab:main_results_allbudgets} reports compute-matched routing results on GSM8K test using the Option-B protocol from Section~\ref{sec:optionb}.
+Table~\ref{tab:main_results_allbudgets} reports compute-matched routing results on GSM8K test using the Option-B protocol from Section~\ref{sec:optionb}. This routing table is sourced from the canonical Option-B family rooted at \texttt{results/preds\_student\_full.jsonl}, not from the \texttt{results\_abl/*} anytime-analysis family used in Table~\ref{tab:anytime_gsm8k}.
 
 \input{artifacts/paper/tables/router_table.tex}
 
@@ -170,11 +170,11 @@ On BoolQ, confidence-threshold routing is substantially worse than fixed depth a
 The compute-matched protocol uses allocated tokens (\texttt{max\_new\_tokens}) as a stable proxy for inference cost. Actual generated tokens are also available in the evaluation pipeline, but they are not used when constructing routing costs. Conclusions should therefore be interpreted as matching \emph{allocated} rather than realized compute.
 
 \paragraph{Scope limitations.}
-The empirical study uses a single 1.5B backbone, four discrete budgets, and three split seeds. Reported variability is split-seed variability from router dev/test partitioning only, and does not include retraining/model-seed variance for the student or router feature pipeline. The transfer experiment also omits target-task fine-tuning and is only partially reproducible from this snapshot because some BoolQ-side inputs are Git LFS/externally dependent. Broader conclusions about scaling, architecture dependence, and cross-domain robustness will require a larger experimental sweep.
+The empirical study uses a single 1.5B backbone, four discrete budgets, and three split seeds. Reported variability is split-seed variability from router dev/test partitioning only, and does not include retraining/model-seed variance for the student or router feature pipeline. The bundled teacher trajectory file (\texttt{data/anytime\_gsm8k\_train\_v2.jsonl}) also shows nontrivial checkpoint noise: 460/7,473 trajectories (6.16\%) contain at least one answer flip across $t{=}1\ldots4$, and 47/7,473 (0.63\%) contain a correct$\rightarrow$incorrect regression. The transfer experiment also omits target-task fine-tuning and is only partially reproducible from this snapshot because some BoolQ-side inputs are Git LFS/externally dependent. Broader conclusions about scaling, architecture dependence, and cross-domain robustness will require a larger experimental sweep.
 
 % ======================================================================
 \section{Reproducibility}
-The experimental pipeline is script-driven and partially reproducible from the shipped repository. Tables and figures can be regenerated from bundled prediction/router artifacts, and paper claims are artifact-level claims tied to those canonical files rather than a full raw-to-paper rerun guarantee. Split-seed router variability can be recomputed from bundled manifests, while model-seed retraining variability is not evaluated in the released artifact. Full end-to-end regeneration (including trajectory generation and some evaluation splits such as BoolQ transfer inputs) depends on external datasets, model checkpoints, and Git LFS objects not bundled directly in this snapshot.
+The experimental pipeline is script-driven and partially reproducible from the shipped repository. Tables and figures can be regenerated from bundled prediction/router artifacts, and paper claims are artifact-level claims tied to those canonical files rather than a full raw-to-paper rerun guarantee. For GSM8K, this snapshot contains two explicit canonical families: (i) \texttt{results/preds\_student\_full.jsonl} with split manifests and Option-B CSV exports for routing tables, and (ii) \texttt{results\_abl/preds\_main\_adapter.jsonl} plus \texttt{results\_abl/preds\_base.jsonl} for anytime/calibration analyses; the row-match audit CSV records that these are not one row-identical bundle. Split-seed router variability can be recomputed from bundled manifests, while model-seed retraining variability is not evaluated in the released artifact. Full end-to-end regeneration (including trajectory generation and some evaluation splits such as BoolQ transfer inputs) depends on external datasets, model checkpoints, and Git LFS objects not bundled directly in this snapshot.
 
 % ======================================================================
 \section{Conclusion}

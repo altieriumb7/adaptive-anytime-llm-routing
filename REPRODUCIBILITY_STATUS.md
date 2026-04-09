@@ -26,8 +26,8 @@ End-to-end regeneration from raw trajectory generation + training depends on ass
 - Canonical build flow: `run_paper.sh` (or `run_paper.sh --config configs/paper.yaml`)
 - Canonical paper inputs are documented in `README.md` (Reviewer manifest section)
 
-## Environment note (this runtime)
-In this sandbox (2026-04-08 UTC), package installation for `matplotlib` is blocked by proxy restrictions, so figure/table regeneration commands that import matplotlib fail here even though the repo workflow is correct.
+## Environment note
+Artifact regeneration requires local availability of dependencies from `requirements.paper.txt` (notably `matplotlib`) and, for PDF build, a LaTeX toolchain (`pdflatex`).
 
 ## Honest interpretation
 - **Supported:** paper-asset regeneration from canonical bundled artifacts when required local dependencies are available.

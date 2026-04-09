@@ -11,5 +11,6 @@ args:
   max_new_tokens: "96,160,224,320"
   base_model: YOUR_BASE_MODEL
   adapter_dir: null
-  save_jsonl: artifacts/legacy_results/preds_main_adapter.jsonl
+  # Template output path (kept separate from canonical paper artifacts).
+  save_jsonl: artifacts/template_runs/preds_main_adapter.jsonl
   calibrator: null

@@ -1,6 +1,8 @@
 # Distilling-Anytime-Trajectories-with-Calibrated-Confidence
 
-This repository is a **unified paper+code artifact** for budget-conditioned anytime inference with depth routing.
+This repository is a **paper+code artifact** for budget-conditioned anytime inference with depth routing.
+
+> Audit-critical note: the GSM8K anytime-quality tables/plots and the GSM8K Option-B routing tables are maintained as **two canonical artifact families**, not one row-identical prediction bundle.
 
 ## Canonical artifact map (submission-facing)
 
@@ -13,7 +15,7 @@ To avoid ambiguity across historical folders, the manuscript is synchronized to 
 - **BoolQ transfer router family:** `artifacts/router_optionB_boolq/`
 - **Generated paper tables/figures:** `artifacts/paper/tables/`, `artifacts/paper/figures/`
 - **Canonical GSM8K router prediction source:** `results/preds_student_full.jsonl`
-- **Prediction JSONLs used for paper plots:**
+- **Anytime/calibration prediction JSONLs used for paper plots and Table 1:**
   - `results_abl/preds_main_adapter.jsonl`
   - `results_abl/preds_base.jsonl`
 
@@ -21,6 +23,10 @@ Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_o
 
 ## Quick artifact map (reviewer-friendly)
 
+- **GSM8K anytime table (`tab:anytime_gsm8k`) and reliability/coverage plots**
+  - Canonical JSONLs: `results_abl/preds_main_adapter.jsonl`, `results_abl/preds_base.jsonl`
+- **GSM8K row-match audit between anytime-vs-router families**
+  - Canonical audit CSV: `artifacts/paper/tables/provenance_rowmatch_audit.csv`
 - **Main GSM8K table (`tab:main_results_allbudgets`)**
   - Canonical CSV: `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
   - Canonical TeX table: `artifacts/paper/tables/router_table.tex`
@@ -31,6 +37,14 @@ Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_o
   - Canonical figure: `artifacts/paper/figures/router_pareto_all.pdf`
 - **Canonical reproducibility guide**
   - `REPRODUCIBILITY.md`
+  - BoolQ-specific status: `REPRODUCIBILITY.md#boolq-transfer-reproducibility-status-single-source-of-truth`
+
+## Reproducibility levels (reviewer quick read)
+
+- **Paper-build reproducible:** Yes, from bundled canonical assets when local deps are installed (`bash run_paper.sh`).
+- **Paper-results reproducible (GSM8K router):** Yes, from `results/preds_student_full.jsonl` via seeded splits/manifests and Option-B pipeline.
+- **Paper-results reproducible (BoolQ transfer):** Artifact-level from bundled canonical BoolQ CSV; split-level reruns require non-placeholder BoolQ split payloads (see `REPRODUCIBILITY.md` BoolQ section).
+- **Not fully reproducible from shipped files alone:** full end-to-end regeneration that depends on missing LFS payloads, external models/checkpoints, or API-backed upstream data generation.
 
 Template-only configs are explicitly named with `.template.yaml` and are not reviewer defaults:
 - `configs/train_student_qlora.template.yaml`
@@ -157,6 +171,7 @@ bash run_paper.sh
   - `artifacts/paper/figures/router_pareto_all.pdf`
   - produced by `scripts/make_paper_artifacts.py` from `configs/paper.yaml`.
 - Bundle provenance note: anytime calibration/coverage figures are built from `results_abl/*.jsonl`, while compute-matched routing tables are built from `artifacts/router_optionB/*.csv`; these are both canonical but not represented as one row-identical prediction bundle (see `artifacts/paper/tables/provenance_rowmatch_audit.csv`).
+- Table-level provenance note: GSM8K Table 1 (`tab:anytime_gsm8k`) is sourced from `results_abl/preds_main_adapter.jsonl` and `results_abl/preds_base.jsonl`, while GSM8K router Table 2 (`tab:main_results_allbudgets`) is sourced from the Option-B family rooted at `results/preds_student_full.jsonl`; `artifacts/paper/tables/provenance_rowmatch_audit.csv` is the explicit non-row-identity evidence.
 - Canonical metadata refresh (no heavy regeneration): `python scripts/refresh_canonical_provenance.py` updates `data/router_splits_seeds/manifest.json` and `artifacts/router_optionB/gsm8k_router_manifest.json`.
 
 ## Reproducibility caveats (truthful limits)
