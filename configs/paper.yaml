@@ -19,3 +19,6 @@ models:
     preds_jsonl: results_abl/preds_main_adapter.jsonl
   - name: base
     preds_jsonl: results_abl/preds_base.jsonl
+
+# Lightweight paired split-seed uncertainty support (generated separately).
+router_seed_stats_csv: artifacts/paper/tables/router_paired_bootstrap_gsm8k.csv
