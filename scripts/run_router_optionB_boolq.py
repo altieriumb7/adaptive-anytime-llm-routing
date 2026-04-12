@@ -42,6 +42,7 @@ except ModuleNotFoundError:
     import eval_depth_router as edr
 
 from src.calibration.conf_calibrator import ConfidenceCalibrator
+from scripts.lfs_guard import assert_materialized
 
 
 DEFAULT_OUTROOT = "artifacts/router_optionB_boolq"
@@ -240,6 +241,8 @@ def run_router_boolq(out_dir: str, seeds: List[int], dev_jsonl: Optional[str], t
 
     for seed in seeds:
         dev_path, eval_path = (dev_jsonl, test_jsonl) if (dev_jsonl and test_jsonl) else _default_seed_split_paths(seed)
+        assert_materialized(Path(dev_path), role=f"BoolQ dev split for seed {seed}")
+        assert_materialized(Path(eval_path), role=f"BoolQ validation split for seed {seed}")
         out_seed = str(Path(out_dir) / f"seed{seed}")
         Path(out_seed).mkdir(parents=True, exist_ok=True)
 

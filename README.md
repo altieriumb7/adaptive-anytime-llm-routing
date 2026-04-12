@@ -44,6 +44,7 @@ Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_o
 ## Reproducibility levels (reviewer quick read)
 
 - **Paper-build reproducible:** Yes, from bundled canonical assets when local deps are installed (`bash run_paper.sh`).
+- **Single reviewer check command:** `bash run_review_checks.sh` (compile checks + LFS placeholder detection + artifact regeneration + asset validation).
 - **Paper-results reproducible (GSM8K router):** Yes, from `results/preds_student_full.jsonl` via seeded splits/manifests and Option-B pipeline.
 - **Paper-results reproducible (BoolQ transfer):** Artifact-level from bundled canonical BoolQ CSV; split-level reruns require non-placeholder BoolQ split payloads (see `REPRODUCIBILITY.md` BoolQ section).
 - **Not fully reproducible from shipped files alone:** full end-to-end regeneration that depends on missing LFS payloads, external models/checkpoints, or API-backed upstream data generation.
@@ -127,6 +128,17 @@ python scripts/run_router_optionB_repro.py --out_dir artifacts/router_optionB --
 4. LaTeX asset validation (`\input` + `\includegraphics`) via `scripts/check_paper_assets.py`.
 5. LaTeX compile only if `pdflatex` is available.
 
+
+## Reviewer one-command check
+
+Run this first during review:
+
+```bash
+bash run_review_checks.sh
+```
+
+This is the canonical lightweight check in the shipped snapshot. It deliberately fails fast when critical inputs are unresolved Git LFS pointers and prints a compact reproducibility contract summary.
+
 ### Equivalent manual commands
 
 ```bash
@@ -157,7 +169,8 @@ bash run_paper.sh
 
 ## Legacy/non-canonical pipeline outputs
 
-- `run_all_p0_p5.sh` now writes newly generated end-to-end eval JSONLs to `artifacts/legacy_results/`.
+- `run_all_p0_p5.sh` is now explicitly guard-railed as legacy (requires `ALLOW_LEGACY_RUN_ALL=1`) and writes newly generated end-to-end eval JSONLs to `artifacts/legacy_results/`.
+- `run_optionB_router.sh` is blocked as a legacy entrypoint and points reviewers to canonical scripts.
 - These files are intentionally **non-canonical for manuscript claims** unless manually promoted after independent verification.
 - The script no longer rewrites `configs/paper.yaml`; canonical paper generation always reads the checked-in config.
 

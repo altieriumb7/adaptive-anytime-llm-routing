@@ -11,6 +11,7 @@ This repository is a **paper artifact with canonical bundled outputs**, not a cl
 - Paper-side table/figure assets can be regenerated with:
   - `python scripts/make_paper_artifacts.py --config configs/paper.yaml`
   - `bash run_paper.sh`
+  - `bash run_review_checks.sh` (reviewer preflight: compile checks + LFS pointer checks + asset validation)
 - LaTeX asset references are checkable via:
   - `python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex`
 
@@ -34,3 +35,7 @@ Artifact regeneration requires local availability of dependencies from `requirem
 - **Supported:** split-seed router reproducibility (seeded dev/test partitions and compute-matched evaluation).
 - **Not claimed:** model-seed retraining reproducibility/variance estimates for the distilled student.
 - **Not claimed:** complete end-to-end reproduction from raw data in an offline/no-LFS/no-remote-assets environment.
+
+## Legacy entrypoint policy
+- `run_optionB_router.sh` is intentionally blocked as a legacy script to prevent non-canonical reviewer runs.
+- `run_all_p0_p5.sh` remains available only behind `ALLOW_LEGACY_RUN_ALL=1` for archival end-to-end experimentation.
