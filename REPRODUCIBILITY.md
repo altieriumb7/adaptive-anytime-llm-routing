@@ -11,6 +11,11 @@ This repository supports multiple reproducibility levels with different requirem
 bash run_paper.sh
 ```
 
+Reviewer-facing preflight:
+```bash
+bash run_review_checks.sh
+```
+
 ### Expected outputs
 - `artifacts/paper/tables/router_table.tex`
 - `artifacts/paper/tables/router_table_boolq.tex`
@@ -92,11 +97,11 @@ Typical missing/blocking categories:
 - **BoolQ split-level regeneration is conditional** on resolving LFS placeholders under
   `data/router_splits_boolq_seeds/seed{0,1,2}/{dev,test}.jsonl`.
 
-Quick check for LFS placeholders:
+Canonical LFS preflight check:
 ```bash
-sed -n '1,3p' data/router_splits_boolq_seeds/seed0/dev.jsonl
+python scripts/check_lfs_placeholders.py
 ```
-If the file begins with `version https://git-lfs.github.com/spec/v1`, fetch LFS payloads before attempting split-level BoolQ reruns.
+If BoolQ split files begin with `version https://git-lfs.github.com/spec/v1`, fetch LFS payloads before attempting split-level BoolQ reruns.
 
 ## Canonical vs archived directories
 

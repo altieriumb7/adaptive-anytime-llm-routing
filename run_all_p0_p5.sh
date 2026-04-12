@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${ALLOW_LEGACY_RUN_ALL:-0}" != "1" ]]; then
+  cat >&2 <<'EOF'
+[LEGACY PIPELINE GUARD]
+run_all_p0_p5.sh is retained for archival/end-to-end experimentation and is NOT the
+canonical submission reviewer workflow.
+
+Canonical reviewer commands:
+  - bash run_review_checks.sh
+  - bash run_paper.sh
+  - bash run_canonical_router_pipeline.sh
+
+To intentionally run this legacy script, set:
+  ALLOW_LEGACY_RUN_ALL=1 bash run_all_p0_p5.sh
+EOF
+  exit 1
+fi
+
+
 #############################################
 # USER SETTINGS (EDIT THESE)
 #############################################

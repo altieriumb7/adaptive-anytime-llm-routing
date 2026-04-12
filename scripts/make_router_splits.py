@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
+from scripts.lfs_guard import assert_materialized
+
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -64,6 +66,7 @@ def main() -> None:
     args = ap.parse_args()
 
     source = Path(args.source)
+    assert_materialized(source, role='router source predictions JSONL')
     out_root = Path(args.out_root)
     seeds = [int(x) for x in str(args.seeds).replace(',', ' ').split() if x.strip()]
 
