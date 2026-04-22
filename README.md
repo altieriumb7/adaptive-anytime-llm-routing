@@ -19,7 +19,9 @@ To avoid ambiguity across historical folders, the manuscript is synchronized to 
   - `results_abl/preds_main_adapter.jsonl`
   - `results_abl/preds_base.jsonl`
 
-Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`) are retained for traceability but are non-canonical for paper claims.
+Legacy/auxiliary families (`results_main_full/`, `artifacts/router_optionB_seed*`, `artifacts/router_optionB_boolq_seed*`) are retained for traceability but are non-canonical for paper claims.
+
+Note: `results/` is mixed-scope in this snapshot: `results/preds_student_full.jsonl` is canonical for GSM8K Option-B routing, while other files under `results/` may be legacy or auxiliary.
 
 ## Quick artifact map (reviewer-friendly)
 
@@ -40,6 +42,12 @@ Legacy/auxiliary families (`results/`, `results_main_full/`, `artifacts/router_o
 - **Canonical reproducibility guide**
   - `REPRODUCIBILITY.md`
   - BoolQ-specific status: `REPRODUCIBILITY.md#boolq-transfer-reproducibility-status-single-source-of-truth`
+
+## ATC 2026 fit (honest scope)
+
+This artifact is positioned as a **budget-aware / uncertainty-aware inference systems** study: lightweight stopping/routing policies for compute allocation under constrained budgets.
+
+It is **not** presented as evidence for security, privacy, governance, safety certification, or cyber-physical deployment claims; those are outside the released experiments.
 
 ## Reproducibility levels (reviewer quick read)
 
