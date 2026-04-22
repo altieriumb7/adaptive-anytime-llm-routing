@@ -49,6 +49,8 @@ This paper studies a simple version of that setting. A budget-conditioned studen
 
 A central empirical observation is that later budgets are not guaranteed to improve performance. On GSM8K, the trained adapter is stronger at intermediate checkpoints than at the largest budget (Section~\ref{sec:anytime-results}). Depth routing is therefore useful not only for reducing compute, but also for avoiding answer regressions caused by continued generation.
 
+This scope is intentionally narrow: the paper targets adaptive compute allocation for autonomous inference loops under budget constraints, not broader trusted-AI governance, security, or safety-certification claims.
+
 \paragraph{Contributions.}
 \begin{itemize}
   \item A budget-conditioned anytime model is trained on GSM8K to emit both an answer and a self-reported confidence at four discrete budgets using automatically generated teacher trajectories.
@@ -178,7 +180,7 @@ The experimental pipeline is script-driven and partially reproducible from the s
 
 % ======================================================================
 \section{Conclusion}
-Budget-conditioned anytime inference provides a useful setting for studying adaptive test-time compute in LLMs. Under matched expected compute, lightweight depth routers improve intermediate-budget performance on GSM8K relative to fixed-depth baselines. Confidence-threshold routing is strongest at B2, while stability-based routing is strongest at B3. Transfer to BoolQ without further fine-tuning is substantially less favorable, especially for confidence-based stopping, which suggests that confidence signals learned on math reasoning do not directly generalize across tasks. The oracle reference indicates considerable room for stronger stopping criteria.
+Budget-conditioned anytime inference provides a useful setting for studying adaptive test-time compute in LLMs. Under matched expected compute, lightweight depth routers improve intermediate-budget performance on GSM8K relative to fixed-depth baselines. Confidence-threshold routing is strongest at B2, while stability-based routing is strongest at B3. Transfer to BoolQ without further fine-tuning is substantially less favorable, especially for confidence-based stopping, which suggests that confidence signals learned on math reasoning do not directly generalize across tasks. The oracle reference indicates considerable room for stronger stopping criteria. Overall, the strongest takeaway is a focused systems result on budget-aware routing behavior rather than a broad cross-domain trust guarantee.
 
 % ======================================================================
 \begin{thebibliography}{00}
