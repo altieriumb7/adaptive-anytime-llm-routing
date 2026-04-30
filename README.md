@@ -145,6 +145,18 @@ Run this first during review:
 bash run_review_checks.sh
 ```
 
+Submission-freeze minimal reproduction (artifact-level):
+
+```bash
+bash reproduce_minimal.sh
+```
+
+Frozen submission artifacts and digests:
+
+```bash
+sha256sum -c artifacts/CHECKSUMS.sha256
+```
+
 This is the canonical lightweight check in the shipped snapshot. It deliberately fails fast when critical inputs are unresolved Git LFS pointers and prints a compact reproducibility contract summary.
 
 ### Equivalent manual commands
@@ -214,6 +226,11 @@ Therefore, this artifact should be interpreted as:
 - **paper-asset reproducible from bundled canonical artifacts**,
 - **split-seed reproducible** for router evaluation (seeds 0/1/2), and
 - **partially reproducible end-to-end** when missing LFS/data/checkpoints are unavailable.
+
+### Reproducibility levels (submission contract)
+- **Level A (manuscript artifact regeneration):** supported from bundled canonical artifacts (`bash reproduce_minimal.sh` / `bash run_paper.sh`).
+- **Level B (split/router rerun from bundled predictions):** supported for GSM8K Option-B split-seed reruns from `results/preds_student_full.jsonl`.
+- **Level C (full trajectory generation/training rerun):** not guaranteed from this checkout alone due to LFS/external model/API dependencies.
 
 Important variance scope: reported uncertainty in router tables is across split seeds only; model-seed retraining variance is not claimed in this snapshot.
 

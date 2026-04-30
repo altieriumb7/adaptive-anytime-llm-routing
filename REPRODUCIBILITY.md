@@ -9,6 +9,7 @@ This repository supports multiple reproducibility levels with different requirem
 ### Command
 ```bash
 bash run_paper.sh
+bash reproduce_minimal.sh
 ```
 
 Reviewer-facing preflight:
@@ -24,7 +25,7 @@ bash run_review_checks.sh
 
 ## Level B — Paper results (canonical GSM8K/BoolQ artifacts)
 
-**Supported:** Partially-to-fully, depending on available local dependencies and non-placeholder data. Reported uncertainty here is split-seed variability only.
+**Supported:** Partially-to-fully, depending on available local dependencies and non-placeholder data. Reported uncertainty here is split-seed variability only (not retraining variance).
 
 ### Canonical GSM8K source-of-truth
 - Prediction source: `results/preds_student_full.jsonl`
@@ -89,6 +90,16 @@ Typical missing/blocking categories:
 3. End-to-end training/data regeneration is **not guaranteed** in every environment.
 4. BoolQ/transfer regeneration may require additional non-bundled artifacts depending on LFS availability; bundled BoolQ claims are artifact-level unless split payloads are resolved from LFS.
 5. Model-seed retraining variance is not characterized in the bundled evaluation outputs; split-seed resampling is a narrower uncertainty view.
+
+## Frozen submission artifacts and integrity checks
+
+This submission snapshot includes canonical digests in:
+- `artifacts/CHECKSUMS.sha256`
+
+Verify integrity:
+```bash
+sha256sum -c artifacts/CHECKSUMS.sha256
+```
 
 ## BoolQ transfer reproducibility status (single source of truth)
 
