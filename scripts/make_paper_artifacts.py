@@ -16,6 +16,24 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+_PDF_METADATA = {
+    "Title": "paper-artifact-figure",
+    "Author": "artifact-pipeline",
+    "Subject": "deterministic-figure-export",
+    "Keywords": "reproducible",
+    "Creator": "scripts/make_paper_artifacts.py",
+    "Producer": "matplotlib",
+    # Fixed timestamps to avoid run-to-run hash drift from embedded dates.
+    "CreationDate": "D:20260101000000Z",
+    "ModDate": "D:20260101000000Z",
+}
+
+
+def save_png_pdf(base_path_no_ext: str, dpi: int = 200) -> None:
+    """Save .png and .pdf variants with stable metadata for reproducible hashes."""
+    plt.savefig(f"{base_path_no_ext}.png", dpi=dpi)
+    plt.savefig(f"{base_path_no_ext}.pdf", metadata=_PDF_METADATA)
+
 
 def clamp01(p: float, eps: float = 1e-6) -> float:
     try:
@@ -235,8 +253,7 @@ def fig_router_pareto(router: Dict[str, Dict[str, Tuple[float, float]]], out_dir
     plt.title("Router trade-off (all budgets)")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(out_dir, "router_pareto_all.png"), dpi=200)
-    plt.savefig(os.path.join(out_dir, "router_pareto_all.pdf"))
+    save_png_pdf(os.path.join(out_dir, "router_pareto_all"), dpi=200)
     plt.close()
 
     # per budget
@@ -250,8 +267,7 @@ def fig_router_pareto(router: Dict[str, Dict[str, Tuple[float, float]]], out_dir
         plt.title(f"Router trade-off ({budget_tag})")
         plt.tight_layout()
         safe = budget_tag.replace("/", "_")
-        plt.savefig(os.path.join(out_dir, f"router_pareto_{safe}.png"), dpi=200)
-        plt.savefig(os.path.join(out_dir, f"router_pareto_{safe}.pdf"))
+        save_png_pdf(os.path.join(out_dir, f"router_pareto_{safe}"), dpi=200)
         plt.close()
 
 
@@ -281,8 +297,7 @@ def fig_reliability(models: List[Tuple[str, Preds]], budgets: List[int], out_dir
         plt.title(f"Reliability diagram (t={t})")
         plt.legend()
         plt.tight_layout()
-        plt.savefig(os.path.join(out_dir, f"reliability_t{t}.png"), dpi=200)
-        plt.savefig(os.path.join(out_dir, f"reliability_t{t}.pdf"))
+        save_png_pdf(os.path.join(out_dir, f"reliability_t{t}"), dpi=200)
         plt.close()
     return rows
 
@@ -305,8 +320,7 @@ def fig_risk_coverage(models: List[Tuple[str, Preds]], budgets: List[int], out_d
         plt.title(f"Risk–Coverage (t={t})")
         plt.legend()
         plt.tight_layout()
-        plt.savefig(os.path.join(out_dir, f"risk_coverage_t{t}.png"), dpi=200)
-        plt.savefig(os.path.join(out_dir, f"risk_coverage_t{t}.pdf"))
+        save_png_pdf(os.path.join(out_dir, f"risk_coverage_t{t}"), dpi=200)
         plt.close()
 
 
@@ -336,8 +350,7 @@ def fig_ttc(models: List[Tuple[str, Preds]], budgets: List[int], out_dir: str) -
     plt.title("TTC CDF")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(out_dir, "ttc_cdf.png"), dpi=200)
-    plt.savefig(os.path.join(out_dir, "ttc_cdf.pdf"))
+    save_png_pdf(os.path.join(out_dir, "ttc_cdf"), dpi=200)
     plt.close()
     return rows
 
