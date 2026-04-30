@@ -151,6 +151,15 @@ Submission-freeze minimal reproduction (artifact-level):
 bash reproduce_minimal.sh
 ```
 
+If `reproduce_minimal.sh` reports missing Python dependencies and cannot run `pip install` (for example due to offline/no-index environments), treat that as an environment limitation. Manually install paper dependencies, then rerun:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.paper.txt
+bash reproduce_minimal.sh
+```
+
 Frozen submission artifacts and digests:
 
 ```bash

@@ -6,10 +6,14 @@ cd "${ROOT_DIR}"
 
 PASS=0
 FAIL=0
+ENV_FAIL=0
+SCI_FAIL=0
+DEPS_READY=0
 
 step() { echo; echo "[STEP] $*"; }
 mark_pass() { PASS=$((PASS+1)); echo "[PASS] $*"; }
-mark_fail() { FAIL=$((FAIL+1)); echo "[FAIL] $*"; }
+mark_env_fail() { FAIL=$((FAIL+1)); ENV_FAIL=$((ENV_FAIL+1)); echo "[FAIL][ENV] $*"; }
+mark_sci_fail() { FAIL=$((FAIL+1)); SCI_FAIL=$((SCI_FAIL+1)); echo "[FAIL][SCI] $*"; }
 
 step "Check required Python packages for paper artifact regeneration"
 if python - <<'PY'
@@ -22,9 +26,15 @@ if missing:
 print("OK: required packages present")
 PY
 then
+  DEPS_READY=1
   mark_pass "python package preflight"
 else
-  echo "[INFO] Installing paper dependencies from requirements.paper.txt"
+  echo "[INFO] Missing local Python deps; attempting install from requirements.paper.txt"
+  echo "[INFO] If this host has no network/pip index access, this is an ENVIRONMENT dependency issue, not a scientific reproducibility contradiction."
+  echo "[INFO] Manual fallback:"
+  echo "       1) python -m venv .venv && source .venv/bin/activate"
+  echo "       2) pip install -r requirements.paper.txt"
+  echo "       3) rerun: bash reproduce_minimal.sh"
   if pip install -r requirements.paper.txt; then
     if python - <<'PY'
 import importlib.util
@@ -36,12 +46,13 @@ if missing:
 print("OK_AFTER_INSTALL: required packages present")
 PY
     then
+      DEPS_READY=1
       mark_pass "python package preflight (after install)"
     else
-      mark_fail "python package preflight"
+      mark_env_fail "python package preflight"
     fi
   else
-    mark_fail "install requirements.paper.txt"
+    mark_env_fail "install requirements.paper.txt"
   fi
 fi
 
@@ -49,7 +60,11 @@ step "Run canonical reviewer checks"
 if bash run_review_checks.sh; then
   mark_pass "run_review_checks.sh"
 else
-  mark_fail "run_review_checks.sh"
+  if [[ ${DEPS_READY} -eq 0 ]]; then
+    mark_env_fail "run_review_checks.sh (blocked by missing python deps)"
+  else
+    mark_sci_fail "run_review_checks.sh"
+  fi
 fi
 
 step "Verify required canonical artifacts exist"
@@ -73,35 +88,45 @@ for f in "${REQ[@]}"; do
     missing=1
   fi
 done
-if [[ $missing -eq 0 ]]; then mark_pass "required artifacts"; else mark_fail "required artifacts"; fi
+if [[ $missing -eq 0 ]]; then mark_pass "required artifacts"; else mark_sci_fail "required artifacts"; fi
 
 step "Verify frozen checksums (if checksum file present)"
 if [[ -f artifacts/CHECKSUMS.sha256 ]]; then
   if sha256sum -c artifacts/CHECKSUMS.sha256; then
     mark_pass "checksums"
   else
-    mark_fail "checksums"
+    mark_sci_fail "checksums"
   fi
 else
   echo "[WARN] artifacts/CHECKSUMS.sha256 not found"
-  mark_fail "checksums"
+  mark_sci_fail "checksums"
 fi
 
 step "Regenerate paper artifacts from bundled canonical inputs"
 if python scripts/make_paper_artifacts.py --config configs/paper.yaml; then
   mark_pass "make_paper_artifacts"
 else
-  mark_fail "make_paper_artifacts"
+  if [[ ${DEPS_READY} -eq 0 ]]; then
+    mark_env_fail "make_paper_artifacts (blocked by missing python deps)"
+  else
+    mark_sci_fail "make_paper_artifacts"
+  fi
 fi
 
 echo
 echo "========== MINIMAL REPRODUCTION SUMMARY =========="
 echo "PASS: ${PASS}"
 echo "FAIL: ${FAIL}"
+echo "  - ENV FAIL (dependency/network/toolchain): ${ENV_FAIL}"
+echo "  - SCI FAIL (artifact/claim mismatch): ${SCI_FAIL}"
 if [[ ${FAIL} -eq 0 ]]; then
   echo "OVERALL: PASS (artifact-level reproducibility checks)"
   exit 0
 else
-  echo "OVERALL: FAIL (see steps above)"
+  if [[ ${SCI_FAIL} -eq 0 && ${ENV_FAIL} -gt 0 ]]; then
+    echo "OVERALL: FAIL due only to environment/dependency constraints (network/pip/toolchain), not scientific-claim mismatch."
+  else
+    echo "OVERALL: FAIL (includes scientific/artifact validation failures; see [FAIL][SCI] lines above)"
+  fi
   exit 1
 fi

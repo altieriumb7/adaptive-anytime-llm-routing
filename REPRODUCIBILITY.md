@@ -17,6 +17,14 @@ Reviewer-facing preflight:
 bash run_review_checks.sh
 ```
 
+If dependency installation fails due to unavailable network/package index, classify it as an environment issue (not a contradiction of paper claims). Manual dependency setup:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.paper.txt
+bash reproduce_minimal.sh
+```
+
 ### Expected outputs
 - `artifacts/paper/tables/router_table.tex`
 - `artifacts/paper/tables/router_table_boolq.tex`
