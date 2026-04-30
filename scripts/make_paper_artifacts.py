@@ -6,6 +6,7 @@ import csv
 import json
 import math
 import os
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -24,8 +25,8 @@ _PDF_METADATA = {
     "Creator": "scripts/make_paper_artifacts.py",
     "Producer": "matplotlib",
     # Fixed timestamps to avoid run-to-run hash drift from embedded dates.
-    "CreationDate": "D:20260101000000Z",
-    "ModDate": "D:20260101000000Z",
+    "CreationDate": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    "ModDate": datetime(2026, 1, 1, tzinfo=timezone.utc),
 }
 
 
