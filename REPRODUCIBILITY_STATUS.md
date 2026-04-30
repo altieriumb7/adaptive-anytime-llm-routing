@@ -4,6 +4,11 @@
 
 This repository is a **paper artifact with canonical bundled outputs**, not a claim of full from-scratch experimental reproducibility or full model-seed variance characterization.
 
+### Three-level reproducibility contract
+- **Level A (manuscript artifact regeneration):** supported from bundled canonical artifacts (tables/figures and asset checks).
+- **Level B (split/router reruns from bundled predictions):** supported for seeded router evaluation workflows (GSM8K canonical Option-B path).
+- **Level C (full trajectory generation + training rerun):** not guaranteed from this checkout alone.
+
 ### What is reproducible from bundled canonical artifacts
 - Router LaTeX tables can be regenerated from canonical per-seed CSVs:
   - `artifacts/router_optionB/paper_table_test_full_per_seed.csv`
@@ -29,6 +34,10 @@ End-to-end regeneration from raw trajectory generation + training depends on ass
 
 ## Environment note
 Artifact regeneration requires local availability of dependencies from `requirements.paper.txt` (notably `matplotlib`) and, for PDF build, a LaTeX toolchain (`pdflatex`).
+
+## Frozen artifact integrity
+- Canonical submission artifact digests: `artifacts/CHECKSUMS.sha256`
+- Verification command: `sha256sum -c artifacts/CHECKSUMS.sha256`
 
 ## Honest interpretation
 - **Supported:** paper-asset regeneration from canonical bundled artifacts when required local dependencies are available.

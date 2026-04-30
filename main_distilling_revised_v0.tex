@@ -45,11 +45,11 @@ Test-time compute, anytime prediction, early stopping, routing, calibration, lar
 \section{Introduction}
 Reasoning-oriented LLMs often benefit from generating more tokens, for example under chain-of-thought prompting~\cite{wei2022cot}. Fixed inference budgets, however, are inefficient: easy examples may receive unnecessary computation, while difficult examples may still be under-served. A natural alternative is \emph{anytime inference}, in which a model emits intermediate answers under increasing budgets and a stopping policy decides when enough computation has been spent for a particular input.
 
-This paper studies a simple version of that setting. A budget-conditioned student model is trained to produce an answer and a confidence value at four discrete budgets. Lightweight routers then decide whether to stop or continue based on the partial trajectory, without changing model weights at routing time.
+This paper studies a simple version of that setting with an autonomous inference-control perspective. A budget-conditioned student model is trained to produce an answer and a confidence value at four discrete budgets. Lightweight routers then decide whether to stop or continue based on the partial trajectory, without changing model weights at routing time.
 
 A central empirical observation is that later budgets are not guaranteed to improve performance. On GSM8K, the trained adapter is stronger at intermediate checkpoints than at the largest budget (Section~\ref{sec:anytime-results}). Depth routing is therefore useful not only for reducing compute, but also for avoiding answer regressions caused by continued generation.
 
-This scope is intentionally narrow: the paper targets adaptive compute allocation for autonomous inference loops under budget constraints, not broader trusted-AI governance, security, or safety-certification claims.
+This scope is intentionally narrow: the paper targets dependable adaptive compute allocation for autonomous inference loops under budget constraints, not broader trusted-AI governance, security, privacy, or safety-certification claims.
 
 \paragraph{Contributions.}
 \begin{itemize}
@@ -169,7 +169,7 @@ Stability uses answer agreement across budgets, which becomes informative once t
 On BoolQ, confidence-threshold routing is substantially worse than fixed depth at intermediate tiers. This is consistent with confidence being task- and format-dependent. Better transfer may require task-specific calibration, alternative uncertainty signals such as log-probability margins, or training trajectories that cover yes/no tasks directly.
 
 \paragraph{Allocated versus realized compute.}
-The compute-matched protocol uses allocated tokens (\texttt{max\_new\_tokens}) as a stable proxy for inference cost. Actual generated tokens are also available in the evaluation pipeline, but they are not used when constructing routing costs. Conclusions should therefore be interpreted as matching \emph{allocated} rather than realized compute.
+The compute-matched protocol uses allocated tokens (\texttt{max\_new\_tokens}) as a stable proxy for inference cost in online control. Actual generated tokens are also available in the evaluation pipeline, but they are not used when constructing routing costs. Conclusions should therefore be interpreted as matching \emph{allocated} rather than realized compute.
 
 \paragraph{Scope limitations.}
 The empirical study uses a single 1.5B backbone, four discrete budgets, and three split seeds. Reported variability is split-seed variability from router dev/test partitioning only, and does not include retraining/model-seed variance for the student or router feature pipeline. The added paired split-seed bootstrap artifact provides only a small-scope uncertainty check on routed-vs-fixed deltas and should be interpreted within the same limitation. The bundled teacher trajectory file (\texttt{data/anytime\_gsm8k\_train\_v2.jsonl}) also shows nontrivial checkpoint noise: 460/7,473 trajectories (6.16\%) contain at least one answer flip across $t{=}1\ldots4$, and 47/7,473 (0.63\%) contain a correct$\rightarrow$incorrect regression. The transfer experiment also omits target-task fine-tuning and is only partially reproducible from this snapshot because some BoolQ-side inputs are Git LFS/externally dependent. Broader conclusions about scaling, architecture dependence, and cross-domain robustness will require a larger experimental sweep.
