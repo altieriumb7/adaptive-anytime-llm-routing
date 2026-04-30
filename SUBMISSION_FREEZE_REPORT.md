@@ -1,45 +1,62 @@
-# Submission Freeze Report (Final Pass)
+# Submission Freeze Report (ATC 2026 Final Maintainer Pass)
 
 Date: 2026-04-30
-Scope: final submission-safe pass for manuscript + repository metadata. No scientific results changed.
+Scope: reviewer-safe freeze and polish pass for adaptive/trustworthy inference artifact documentation and checks. No scientific claims or experimental conclusions were changed.
 
-## Checks run
-1. Placeholder/TODO scan on reviewer-visible docs and manuscript.
-2. TeX asset resolution check (`\input` and `\includegraphics`) via `scripts/check_paper_assets.py`.
-3. Venue naming consistency scan (ATC/FLLM mentions) in reviewer-visible files.
-4. LaTeX log warning scan for undefined citations/references and major warnings.
-5. README path-reference sanity script for concrete file references.
-6. Minimal reviewer reproduction command rerun (`bash reproduce_minimal.sh`).
-
-## Files inspected
-- `main_distilling_revised_v0.tex`
+## Files changed
+- `reproduce_minimal.sh`
 - `README.md`
 - `REPRODUCIBILITY.md`
-- `REPRODUCIBILITY_STATUS.md`
-- `CLAIMS_TO_ARTIFACTS.md`
-- `reproduce_minimal.sh`
-- `requirements.paper.txt`
-- `main_distilling_revised_v0.log` (when available)
+- `SUBMISSION_FREEZE_REPORT.md`
 
-## Issues fixed in this pass
-- Added explicit compatible matplotlib requirement in `requirements.paper.txt` (`matplotlib>=3.8,<3.11`).
-- Improved `reproduce_minimal.sh` with explicit Python dependency preflight (`matplotlib`, `yaml`, `numpy`) and clear install/recheck behavior before artifact regeneration.
+## Reviewer-visible cleanup
+Searched reviewer-facing files for TODO/FIXME/WIP/placeholder/temporary wording and confirmed no unresolved reviewer-facing placeholders requiring removal. Remaining "placeholder" mentions are intentional reproducibility caveats about unresolved Git LFS pointers.
 
-## Findings (current state)
-- **Broken TeX asset links:** none detected (`check_paper_assets.py` passed).
-- **Unresolved TODOs/placeholders:** none reviewer-facing in scanned files (excluding intentional mention of Git LFS placeholders as reproducibility caveats).
-- **README/TeX referenced missing files:** no concrete missing canonical artifact reference found; README contains some wildcard/template/path-pattern strings by design.
-- **Page-limit status:** not fully verifiable in this environment (`pdfinfo` unavailable).
-- **Citation/reference warnings:** no undefined citation/reference warnings were found in available log scan; standard overfull/underfull box warnings remain.
-- **Venue-name consistency:** ATC framing is present and consistent with repository positioning.
-- **Overclaiming check (abstract/conclusion):** wording remains conservative and explicitly scoped (artifact-level reproducibility, split-seed variability only, limited backbone/task scope).
+## Reproducibility messaging updates
+### `reproduce_minimal.sh`
+Updated messaging and failure accounting to explicitly separate:
+- **environment/dependency/toolchain failures** (`[FAIL][ENV]`), and
+- **scientific/artifact validation failures** (`[FAIL][SCI]`).
 
-## Remaining known limitations
-1. End-to-end raw-to-paper rerun is still partial due to LFS/external model/API dependencies.
-2. Reported variance is split-seed only; no retraining/model-seed variance characterization.
-3. Experimental breadth remains limited (one backbone, four budgets, GSM8K main + BoolQ transfer).
-4. `bash reproduce_minimal.sh` may fail in network-restricted environments when pip cannot fetch missing packages.
+Added explicit offline/network guidance with manual installation steps for `requirements.paper.txt`.
+Experimental logic and validation sequence were not changed.
 
-## Final readiness judgment
-- **Repository/manuscript are submission-freeze ready for ATC-facing artifact transparency and reviewer safety**, with known reproducibility limits explicitly documented.
-- **Acceptance-risk caveat remains scientific-scope related** (limited rerun completeness/variance breadth), not hidden process/documentation defects.
+### `README.md` and `REPRODUCIBILITY.md`
+Added explicit manual fallback instructions for environments without pip/network access and clarified that such failures are environmental, not contradictions of scientific claims.
+
+## Manuscript synchronization audit
+Audited:
+- `main_distilling_revised_v0.tex`
+- canonical tables under `artifacts/paper/tables/`
+- canonical figure under `artifacts/paper/figures/router_pareto_all.pdf`
+- artifact-claim mapping in `CLAIMS_TO_ARTIFACTS.md`
+
+Findings:
+- Wording is conservative and systems-oriented.
+- Reproducibility boundaries are explicit (artifact-level vs full rerun).
+- Compute terminology clearly distinguishes allocated-token proxy from realized compute.
+- ATC framing remains focused on adaptive inference, dependable routing, trustworthy compute allocation, and autonomous stopping.
+
+## Checks run (with outcomes)
+1. `bash run_review_checks.sh`
+   - Result: **failed due to missing matplotlib dependency** during paper artifact regeneration stage.
+   - Classification: environment/dependency limitation in this sandbox.
+2. `sha256sum -c artifacts/CHECKSUMS.sha256`
+   - Result: **pass** for all listed frozen artifacts.
+3. `bash reproduce_minimal.sh`
+   - Result: **overall fail** with ENV-only failures and zero SCI failures.
+   - Reported summary: `ENV FAIL = 3`, `SCI FAIL = 0`.
+4. `pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex`
+   - Result: **failed** (`pdflatex` not installed in this environment).
+   - Classification: toolchain availability limitation.
+
+## Remaining limitations (explicit, unchanged)
+1. Full raw-to-paper rerun is not guaranteed from this checkout alone due to LFS/external dependencies.
+2. Split-level BoolQ reruns remain conditional on resolving LFS payloads.
+3. Reported uncertainty remains split-seed only; retraining/model-seed variance is not claimed.
+4. Experimental breadth remains limited (intentionally documented).
+
+## Final readiness judgment (ATC 2026)
+**Ready for submission freeze from a reviewer-safety and artifact-transparency perspective.**
+
+The repository now communicates reproducibility boundaries and environment-vs-scientific failure modes more clearly, while preserving conservative, systems-focused framing and not changing scientific results.
