@@ -8,7 +8,7 @@ This repository is a **paper+code artifact** for budget-conditioned anytime infe
 
 To avoid ambiguity across historical folders, the manuscript is synchronized to the following canonical paths:
 
-- **Paper entry point:** `main_distilling_revised_v0.tex`
+- **Paper entry points:** `main_distilling_revised_v0_10page.tex` (submission), `main_distilling_revised_v0.tex` (long draft)
 - **Canonical build entry point:** `run_paper.sh`
 - **Main GSM8K router family (paper-facing only):** `artifacts/router_optionB/`
 - **Archived GSM8K router intermediates/non-canonical summaries:** `artifacts/router_optionB_legacy/`
@@ -51,7 +51,7 @@ It is **not** presented as evidence for security, privacy, governance, safety ce
 
 ## Reproducibility levels (reviewer quick read)
 
-- **Paper-build reproducible:** Yes, from bundled canonical assets when local deps are installed (`bash run_paper.sh`).
+- **Paper-build reproducible:** Yes, from bundled canonical assets when local deps are installed (`bash run_paper.sh --variant 10page`).
 - **Single reviewer check command:** `bash run_review_checks.sh` (compile checks + LFS placeholder detection + artifact regeneration + asset validation).
 - **Paper-results reproducible (GSM8K router):** Yes, from `results/preds_student_full.jsonl` via seeded splits/manifests and Option-B pipeline.
 - **Paper-results reproducible (BoolQ transfer):** Artifact-level from bundled canonical BoolQ CSV; split-level reruns require non-placeholder BoolQ split payloads (see `REPRODUCIBILITY.md` BoolQ section).
@@ -106,7 +106,7 @@ pip install -r requirements.openai.txt
 Use the single canonical script:
 
 ```bash
-bash run_paper.sh
+bash run_paper.sh --variant 10page
 ```
 
 To rebuild the GSM8K router artifacts from the canonical prediction source before paper generation:
@@ -118,7 +118,7 @@ bash run_canonical_router_pipeline.sh
 Optional explicit config (equivalent canonical behavior):
 
 ```bash
-bash run_paper.sh --config configs/paper.yaml
+bash run_paper.sh --variant 10page --config configs/paper.yaml
 ```
 
 `run_paper.sh` performs:
@@ -134,7 +134,8 @@ python scripts/make_router_splits.py --source results/preds_student_full.jsonl -
 python scripts/run_router_optionB_repro.py --out_dir artifacts/router_optionB --seeds 0,1,2
 ```
 4. LaTeX asset validation (`\input` + `\includegraphics`) via `scripts/check_paper_assets.py`.
-5. LaTeX compile only if `pdflatex` is available.
+5. LaTeX compile to variant-specific output in `build/` (`paper_10page.pdf` or `paper_long.pdf`).
+6. For `--variant 10page`, strict page-count validation (fails if pages > 10).
 
 
 ## Reviewer one-command check
@@ -193,7 +194,7 @@ pdflatex -interaction=nonstopmode -halt-on-error main_distilling_revised_v0.tex
 python -m compileall scripts src
 python scripts/check_paper_assets.py --tex main_distilling_revised_v0.tex
 python scripts/make_paper_artifacts.py --config configs/paper.yaml
-bash run_paper.sh
+bash run_paper.sh --variant 10page
 ```
 
 ## Legacy/non-canonical pipeline outputs
